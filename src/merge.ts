@@ -35,3 +35,19 @@ export function MergeParameterDecorators(
     }
   };
 }
+
+export function MergeClassOrMethodDecorators(
+  decs: (ClassDecorator & MethodDecorator)[],
+): ClassDecorator & MethodDecorator {
+  return (obj, key?, descriptor?) => {
+    if (descriptor) {
+      for (const dec of decs) {
+        dec(obj, key, descriptor);
+      }
+    } else {
+      for (const dec of decs) {
+        dec(obj);
+      }
+    }
+  };
+}

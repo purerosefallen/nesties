@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiHeader } from '@nestjs/swagger';
 import { BlankReturnMessageDto } from './return-message';
-import { MergeMethodDecorators } from './merge';
+import { MergeClassOrMethodDecorators } from './merge';
 import { ApiError } from './openapi';
 
 @Injectable()
@@ -26,7 +26,7 @@ export class TokenGuard implements CanActivate {
 }
 
 export const RequireToken = () =>
-  MergeMethodDecorators([
+  MergeClassOrMethodDecorators([
     UseGuards(TokenGuard),
     ApiHeader({
       name: 'x-server-token',
