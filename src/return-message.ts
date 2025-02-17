@@ -96,7 +96,7 @@ export function ReturnMessageDto<T extends ClassOrArray>(
         },
       },
     },
-    `${getClassFromClassOrArray(type).name}ReturnMessageDto`,
+    `${getClassFromClassOrArray(type).name}${Array.isArray(type) ? 'Array' : ''}ReturnMessageDto`,
   );
 }
 
