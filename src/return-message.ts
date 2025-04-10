@@ -17,6 +17,7 @@ export interface BlankReturnMessage {
   statusCode: number;
   message: string;
   success: boolean;
+  timestamp: Date;
 }
 
 export interface ReturnMessage<T> extends BlankReturnMessage {
@@ -30,10 +31,13 @@ export class BlankReturnMessageDto implements BlankReturnMessage {
   message: string;
   @ApiProperty({ description: 'Whether success.', type: Boolean })
   success: boolean;
+  @ApiProperty({ description: 'Return timestamp', type: Date })
+  timestamp: Date;
   constructor(statusCode: number, message?: string) {
     this.statusCode = statusCode;
     this.message = message || 'success';
     this.success = statusCode < 400;
+    this.timestamp = new Date();
   }
 
   toException() {
