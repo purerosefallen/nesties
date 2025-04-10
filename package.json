@@ -39,9 +39,9 @@
     "testEnvironment": "node"
   },
   "devDependencies": {
-    "@nestjs/common": "^10.4.6",
-    "@nestjs/config": "^3.3.0",
-    "@nestjs/swagger": "^7.4.2",
+    "@nestjs/common": "^11.0.14",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/swagger": "^11.1.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.8.1",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
@@ -56,8 +56,8 @@
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
-    "@nestjs/common": "^9.4.0 || ^10.0.0",
-    "@nestjs/swagger": "^7.1.8 || ^6.3.0",
-    "@nestjs/config": "^3.0.0"
+    "@nestjs/common": "^9.4.0 || ^10.0.0 || ^11.0.0",
+    "@nestjs/config": "^3.0.0 || ^4.0.0",
+    "@nestjs/swagger": "^7.1.8 || ^6.3.0 || ^11.0.0"
   }
 }
