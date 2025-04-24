@@ -12,15 +12,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://code.mycard.moe/3rdeye/nesties.git"
+    "url": "https://github.com/purerosefallen/nesties.git"
   },
   "author": "Nanahira <nanahira@momobako.com>",
   "license": "MIT",
   "keywords": [],
   "bugs": {
-    "url": "https://code.mycard.moe/3rdeye/nesties/issues"
+    "url": "https://github.com/purerosefallen/nesties/issues"
   },
-  "homepage": "https://code.mycard.moe/3rdeye/nesties",
+  "homepage": "https://github.com/purerosefallen/nesties",
   "jest": {
     "moduleFileExtensions": [
       "js",
@@ -56,8 +56,8 @@
     "typescript": "^5.6.3"
   },
   "peerDependencies": {
-    "@nestjs/common": "^9.4.0 || ^10.0.0 || ^11.0.0",
-    "@nestjs/config": "^3.0.0 || ^4.0.0",
-    "@nestjs/swagger": "^7.1.8 || ^6.3.0 || ^11.0.0"
+    "@nestjs/common": "^11.0.0 || ^9.4.0 || ^10.0.0",
+    "@nestjs/config": "^4.0.0 || ^3.0.0",
+    "@nestjs/swagger": "^11.0.0 || ^7.1.8 || ^6.3.0"
   }
 }
