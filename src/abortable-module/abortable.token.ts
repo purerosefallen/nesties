@@ -1,0 +1,75 @@
+import { Inject, Provider, Scope } from '@nestjs/common';
+import { abortable, AbortableOpts } from 'nfkit';
+import { ABORT_SIGNAL } from './abort-signal.provider';
+import { ContextIdFactory, ModuleRef, REQUEST } from '@nestjs/core';
+
+export type ProviderToken<T = any> =
+  | string
+  | symbol
+  | (new (...args: any[]) => T);
+
+const tokenMemo = new Map<any, symbol>();
+export const abortableToken = (token: ProviderToken) => {
+  if (tokenMemo.has(token)) return tokenMemo.get(token)!;
+  const name = typeof token === 'function' ? token.name : String(token);
+  const sym = Symbol.for(`Abortable(${name})`);
+  tokenMemo.set(token, sym);
+  return sym;
+};
+
+/**
+ * 支持两种用法：
+ *   @InjectAbortable(SomeService)
+ *   @InjectAbortable()  // 自动推断类型
+ */
+export function InjectAbortable(token?: ProviderToken): ParameterDecorator {
+  return (target, propertyKey, parameterIndex) => {
+    let actualToken = token;
+
+    if (!actualToken) {
+      // 利用 reflect-metadata 获取参数类型
+      const paramTypes: any[] =
+        Reflect.getMetadata('design:paramtypes', target, propertyKey) || [];
+      actualToken = paramTypes[parameterIndex];
+      if (!actualToken) {
+        throw new Error(
+          `@InjectAbortable() cannot infer type from metadata: ${target.constructor?.name}[${parameterIndex}]`,
+        );
+      }
+    }
+
+    Inject(abortableToken(actualToken))(target, propertyKey, parameterIndex);
+  };
+}
+
+export function createAbortableProvider<T>(
+  token: ProviderToken<T>,
+  opts?: AbortableOpts,
+): Provider {
+  const provide = abortableToken(token);
+
+  return {
+    provide,
+    scope: Scope.REQUEST,
+    inject: [ModuleRef, REQUEST, ABORT_SIGNAL],
+    // ⚠️ 注意：用 async + resolve + contextId + strict:false
+    useFactory: async (
+      moduleRef: ModuleRef,
+      req: Request,
+      signal: AbortSignal,
+    ) => {
+      // 让解析与当前请求上下文绑定（支持 request/transient 作用域）
+      const ctxId = ContextIdFactory.getByRequest(req);
+      // 严格模式关闭，允许跨模块边界解析（解决测试里 forFeature 子模块看不到 DemoService 的情况）
+      const svc = await moduleRef.resolve<T>(token, ctxId, { strict: false });
+      if (svc == null) {
+        throw new Error(
+          `Abortable: provider "${String(
+            (token as any).name ?? token,
+          )}" not found in container (even with strict:false)`,
+        );
+      }
+      return abortable<T>(svc, signal, opts);
+    },
+  };
+}

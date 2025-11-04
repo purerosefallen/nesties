@@ -22,3 +22,13 @@ export const ApiBlankResponse = (options: ApiResponseOptions = {}) =>
 
 export const ApiError = (status: number, description: string) =>
   ApiBlankResponse({ status, description });
+
+export const ApiErrorTyped = (
+  status: number,
+  description: string,
+  type: ClassOrArray,
+) =>
+  ApiTypeResponse(type, {
+    status,
+    description,
+  });
