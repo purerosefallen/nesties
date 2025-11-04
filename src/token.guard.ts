@@ -30,8 +30,8 @@ export const RequireToken = () =>
     UseGuards(TokenGuard),
     ApiHeader({
       name: 'x-server-token',
-      description: '服务器 token',
+      description: 'Server token',
       required: false,
     }),
-    ApiError(401, '服务器 Token 不正确'),
+    ApiError(401, 'Incorrect server token provided'),
   ]);
