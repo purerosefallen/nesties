@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UseGuards,
 } from '@nestjs/common';
@@ -13,7 +14,7 @@ import { ApiError } from './openapi';
 @Injectable()
 export class TokenGuard implements CanActivate {
   private token = this.config.get<string>('SERVER_TOKEN');
-  constructor(private config: ConfigService) {}
+  constructor(@Inject(ConfigService) private config: ConfigService) {}
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
