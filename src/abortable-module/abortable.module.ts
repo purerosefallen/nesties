@@ -1,7 +1,8 @@
-import { DynamicModule, Module, Provider } from '@nestjs/common';
-import { ProviderToken, createAbortableProvider } from './abortable.token';
+import { DynamicModule, Module } from '@nestjs/common';
+import { createAbortableProvider } from './abortable.token';
 import { AbortableOpts } from 'nfkit';
 import { AbortSignalProvider } from './abort-signal.provider';
+import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
 
 export interface AbortableModuleOptions {
   abortableOptions?: AbortableOpts;
@@ -19,10 +20,10 @@ export class AbortableModule {
   }
 
   static forFeature(
-    tokens: ProviderToken[],
+    tokens: InjectionToken[],
     options?: AbortableModuleOptions,
   ): DynamicModule {
-    const providers: Provider[] = tokens.map((token) =>
+    const providers = tokens.map((token) =>
       createAbortableProvider(token, options?.abortableOptions),
     );
 

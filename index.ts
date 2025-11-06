@@ -6,3 +6,4 @@ export * from './src/pipe';
 export * from './src/token.guard';
 export * from './src/abort-utils';
 export * from './src/abortable-module';
+export * from './src/create-provider';

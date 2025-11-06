@@ -1,15 +1,12 @@
-import { Inject, Provider, Scope } from '@nestjs/common';
+import { Inject, Scope } from '@nestjs/common';
 import { abortable, AbortableOpts } from 'nfkit';
 import { ABORT_SIGNAL } from './abort-signal.provider';
 import { ContextIdFactory, ModuleRef, REQUEST } from '@nestjs/core';
-
-export type ProviderToken<T = any> =
-  | string
-  | symbol
-  | (new (...args: any[]) => T);
+import { createProvider } from '../create-provider';
+import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
 
 const tokenMemo = new Map<any, symbol>();
-export const abortableToken = (token: ProviderToken) => {
+export const abortableToken = (token: InjectionToken) => {
   if (tokenMemo.has(token)) return tokenMemo.get(token)!;
   const name = typeof token === 'function' ? token.name : String(token);
   const sym = Symbol.for(`Abortable(${name})`);
@@ -22,7 +19,7 @@ export const abortableToken = (token: ProviderToken) => {
  *   @InjectAbortable(SomeService)
  *   @InjectAbortable()  // 自动推断类型
  */
-export function InjectAbortable(token?: ProviderToken): ParameterDecorator {
+export function InjectAbortable(token?: InjectionToken): ParameterDecorator {
   return (target, propertyKey, parameterIndex) => {
     let actualToken = token;
 
@@ -43,21 +40,18 @@ export function InjectAbortable(token?: ProviderToken): ParameterDecorator {
 }
 
 export function createAbortableProvider<T>(
-  token: ProviderToken<T>,
+  token: InjectionToken<T>,
   opts?: AbortableOpts,
-): Provider {
+) {
   const provide = abortableToken(token);
 
-  return {
-    provide,
-    scope: Scope.REQUEST,
-    inject: [ModuleRef, REQUEST, ABORT_SIGNAL],
-    // ⚠️ 注意：用 async + resolve + contextId + strict:false
-    useFactory: async (
-      moduleRef: ModuleRef,
-      req: Request,
-      signal: AbortSignal,
-    ) => {
+  return createProvider(
+    {
+      provide,
+      scope: Scope.REQUEST,
+      inject: [ModuleRef, REQUEST, ABORT_SIGNAL],
+    },
+    async (moduleRef, req: Request, signal) => {
       // 让解析与当前请求上下文绑定（支持 request/transient 作用域）
       const ctxId = ContextIdFactory.getByRequest(req);
       // 严格模式关闭，允许跨模块边界解析（解决测试里 forFeature 子模块看不到 DemoService 的情况）
@@ -71,5 +65,5 @@ export function createAbortableProvider<T>(
       }
       return abortable<T>(svc, signal, opts);
     },
-  };
+  );
 }
