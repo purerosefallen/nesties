@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { I18nService } from './i18n.service';
 import { createResolver, ResolverDual } from '../resolver';
+import { ModuleRef } from '@nestjs/core';
 
 type LocaleContext = {
   ctx: ExecutionContext;
@@ -16,13 +17,16 @@ type LocaleContext = {
 
 @Injectable()
 export class LocalePipe implements PipeTransform {
-  constructor(@Inject(I18nService) private i18nService: I18nService) {}
+  constructor(
+    @Inject(I18nService) private i18nService: I18nService,
+    @Inject(ModuleRef) private moduleRef: ModuleRef,
+  ) {}
 
   async transform(ctx: LocaleContext, metadata: ArgumentMetadata) {
     const resolver = ctx.resolver;
     if (resolver) {
       const _resolver = createResolver(resolver);
-      const locale = await _resolver(ctx.ctx, undefined);
+      const locale = await _resolver(ctx.ctx, this.moduleRef);
       return this.i18nService.getExactLocale(locale);
     } else {
       return this.i18nService.getExactLocaleFromRequest(ctx.ctx);

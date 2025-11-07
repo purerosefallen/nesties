@@ -16,7 +16,7 @@ export interface ResolverStatic {
 
 export type ResolverDynamic = (
   ctx: ExecutionContext,
-  ref?: ModuleRef,
+  ref: ModuleRef,
 ) => Awaitable<string>;
 
 export type ResolverDual = ResolverStatic | ResolverDynamic;
