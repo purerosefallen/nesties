@@ -5,19 +5,21 @@ import {
   Inject,
   Injectable,
 } from '@nestjs/common';
-import { I18nModuleOptionsToken, I18nResolverToken } from './i18n-token';
-import { I18nModuleOptions, I18nResolverDynamic } from './i18n-module.options';
+import { I18nModuleOptionsToken } from './i18n-token';
+import { I18nModuleOptions } from './i18n-module.options';
 import { I18nMiddleware } from './i18n-middleware.type';
 import { parseI18n } from '../utility/parse-i18n';
 import { ModuleRef } from '@nestjs/core';
+import { createResolver } from '../resolver';
 
 @Injectable()
 export class I18nService {
   constructor(
-    @Inject(I18nResolverToken) private resolver: I18nResolverDynamic,
     @Inject(I18nModuleOptionsToken) private options: I18nModuleOptions,
     @Inject(ModuleRef) private moduleRef: ModuleRef,
   ) {}
+
+  private resolver = createResolver(this.options.resolver);
 
   private locales = new Set(this.options.locales);
   private defaultLocale = this.options.defaultLocale ?? this.options.locales[0];

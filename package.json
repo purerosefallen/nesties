@@ -84,6 +84,7 @@
     "rxjs": ">=7.0.0"
   },
   "dependencies": {
-    "nfkit": "^1.0.9"
+    "nfkit": "^1.0.9",
+    "typed-reflector": "^1.0.13"
   }
 }

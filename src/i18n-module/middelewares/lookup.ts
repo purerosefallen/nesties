@@ -66,7 +66,9 @@ export const I18nLookupMiddleware = (
     // 命中判断：允许空字符串 ''；仅 null/undefined 视为未命中
     if (dictionary && Object.prototype.hasOwnProperty.call(dictionary, key)) {
       const val = dictionary[key];
-      if (val != null) return val; // '' 也算命中
+      if (val != null) {
+        return val;
+      }
     }
 
     return next();

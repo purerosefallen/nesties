@@ -1,9 +1,25 @@
-import {
-  I18nResolverDynamic,
-  I18nResolver,
-  I18nResolverStatic,
-} from './i18n-module.options';
 import type { Request } from 'express';
+import { Awaitable } from './utility/awaitable';
+import { ExecutionContext } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import {
+  ApiHeader,
+  ApiHeaderOptions,
+  ApiQuery,
+  ApiQueryOptions,
+} from '@nestjs/swagger';
+
+export interface ResolverStatic {
+  paramType: 'header' | 'query';
+  paramName: string;
+}
+
+export type ResolverDynamic = (
+  ctx: ExecutionContext,
+  ref?: ModuleRef,
+) => Awaitable<string>;
+
+export type ResolverDual = ResolverStatic | ResolverDynamic;
 
 type AnyReq = Request & {
   headers?: Record<string, any>;
@@ -80,14 +96,12 @@ function getQueryValue(req: AnyReq, key: string): string | undefined {
   return undefined;
 }
 
-export const createDynamicResolverFromStatic = (
-  _options: I18nResolver,
-): I18nResolverDynamic => {
+export const createResolver = (_options: ResolverDual): ResolverDynamic => {
   if (typeof _options === 'function') {
     // it's already dynamic
     return _options;
   }
-  const options = _options as I18nResolverStatic;
+  const options = _options as ResolverStatic;
   const field = options.paramType; // 'header' | 'query'
   let name = options.paramName;
   if (field === 'header') name = name.toLowerCase();
@@ -107,4 +121,25 @@ export const createDynamicResolverFromStatic = (
 
     throw new Error(`Unsupported paramType: ${field}`);
   };
+};
+
+export const ApiFromResolver = (
+  _options: ResolverDual,
+  extras: ApiHeaderOptions | ApiQueryOptions = {},
+): ClassDecorator & MethodDecorator => {
+  if (typeof _options === 'function') {
+    // dynamic resolver, no static param info
+    return () => {};
+  }
+  const options = _options as ResolverStatic;
+  const paramType = (options as ResolverStatic)?.paramType;
+  const apiOptions: ApiHeaderOptions = {
+    name: (options as ResolverStatic).paramName,
+    ...extras,
+  };
+  return paramType === 'header'
+    ? ApiHeader(apiOptions)
+    : paramType === 'query'
+      ? ApiQuery({ type: 'string', ...apiOptions })
+      : () => {};
 };

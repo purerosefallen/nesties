@@ -1,9 +1,10 @@
-import { I18nModuleOptions, I18nResolver } from './i18n-module.options';
+import { I18nModuleOptions } from './i18n-module.options';
 import { createI18nDecorator } from './i18n-decorator';
 import { I18nModule } from './i18n.module';
+import { ResolverDual } from '../resolver';
 
 export const createI18n = (
-  options: Omit<I18nModuleOptions, 'resolver'> & { resolver?: I18nResolver },
+  options: Omit<I18nModuleOptions, 'resolver'> & { resolver?: ResolverDual },
 ) => {
   if (!options.resolver) {
     options.resolver = {

@@ -121,7 +121,7 @@ describe('i18n e2e', () => {
     i18n = app.get(I18nService);
 
     // 注入字典查找中间件（最长前缀匹配）
-    i18n.middleware(I18nLookupMiddleware(DICT, { matchType: 'startsWith' }));
+    i18n.middleware(I18nLookupMiddleware(DICT, { matchType: 'hierarchy' }));
 
     await app.init();
   });
