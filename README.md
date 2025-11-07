@@ -419,7 +419,6 @@ export class TranslationMiddleware {
 Register `TranslationMiddleware` in any module that also imports `TypeOrmModule.forFeature([Translation])` so the service is instantiated and its middleware is attached to `I18nService`.
 
 By composing multiple middlewares (dictionaries, database lookups, remote APIs), you can build a tiered fallback chain that covers every translation source you need.
-```
 
 - `createI18n` returns both a configured module (`I18nModule`) and a decorator (`UseI18n`) that adds the bundled interceptor and Swagger metadata describing the locale resolver.
 - `UseI18n` wires the interceptor that walks the returned DTO (e.g., `GenericReturnMessageDto`) and replaces every string that contains placeholders (`Hello #{key}`) using the locale detected from the incoming request.
