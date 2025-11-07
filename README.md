@@ -98,8 +98,6 @@ class ExampleController {
 }
 ```
 
-## Usage
-
 ### 4. Return Message DTOs
 
 Nesties provides a set of DTOs for consistent API response structures, and it also includes a utility function `ReturnMessageDto` to generate DTOs dynamically based on the provided class type.
@@ -153,67 +151,281 @@ This approach automatically creates a DTO structure with the properties of `User
 
 ### 5. Token Guard
 
-Nesties includes a `TokenGuard` class that validates server tokens from the request headers. This can be used with the `RequireToken` decorator for routes requiring token validation.
+`TokenGuard` validates a single “server token” before invoking a controller method. By default it reads `SERVER_TOKEN` from `ConfigService` and compares it with the `x-server-token` header, returning a `401` when they differ.
 
-```typescript
-import { RequireToken } from 'nesties';
+#### Quick start (defaults only)
 
-@Controller('secure')
-export class SecureController {
-@Get()
-@RequireToken()
-secureEndpoint() {
-// This endpoint requires a token
-}
-}
-```
-
-#### How to Use `TokenGuard`
-
-1. **Set the `SERVER_TOKEN` in the Configuration**
-
-   In your Nest.js configuration, make sure to set up the `SERVER_TOKEN` using the `@nestjs/config` package.
+1. **Load the config module**
 
    ```typescript
    import { ConfigModule } from '@nestjs/config';
 
    @Module({
-      imports: [ConfigModule.forRoot()],
+     imports: [ConfigModule.forRoot()],
    })
    export class AppModule {}
    ```
 
-   In your environment file (`.env`), define your token:
+2. **Set the secret**
 
    ```
    SERVER_TOKEN=your-secure-token
    ```
 
-2. **Token Validation with `TokenGuard`**
-
-   `TokenGuard` checks the request headers for a token called `x-server-token`. If this token matches the one defined in your configuration, the request is allowed to proceed. If the token is missing or incorrect, a `401 Unauthorized` error is thrown.
-
-   This approach is ideal for simple token-based authentication for APIs. It provides a lightweight method to protect routes without implementing a full OAuth or JWT-based system.
-
-3. **Use `RequireToken` Decorator**
-
-   Apply the `RequireToken` decorator to your controller methods to enforce token validation:
+3. **Decorate the route**
 
    ```typescript
    import { Controller, Get } from '@nestjs/common';
    import { RequireToken } from 'nesties';
 
-   @Controller('api')
-   export class ApiController {
-   @Get('protected')
-   @RequireToken()
-   protectedRoute() {
-   return { message: 'This is a protected route' };
-   }
+   @Controller('secure')
+   export class SecureController {
+     @Get()
+     @RequireToken() // expects x-server-token to match SERVER_TOKEN
+     secureEndpoint() {
+       return { message: 'Valid server token supplied' };
+     }
    }
    ```
 
-   In this example, the `protectedRoute` method will only be accessible if the request includes the correct `x-server-token` header.
+`RequireToken()` installs `TokenGuard`, generates the Swagger header metadata automatically, and documents the `401` response. If `SERVER_TOKEN` is empty (e.g., local dev) the guard becomes a no-op so you can disable it without touching code.
+
+#### Advanced configuration
+
+When you need to override the defaults, pass options into `RequireToken`:
+
+- `resolver` (default: `{ paramType: 'header', paramName: 'x-server-token' }`): where to read the **client** token from. Accepts any `ResolverDual`, so query/header resolvers are all supported.
+- `tokenSource` (default: `'SERVER_TOKEN'`): how to read the **server** token. Provide another config key or an async resolver `(ctx, moduleRef) => Promise<string>` for dynamic sources.
+- `errorCode` (default: `401`): HTTP status when tokens do not match.
+
+```typescript
+@Controller('api')
+export class ApiController {
+  @Get('protected')
+  @RequireToken({
+    resolver: { paramType: 'query', paramName: 'token' },
+    tokenSource: 'INTERNAL_TOKEN',
+    errorCode: 498,
+  })
+  fetch() {
+    return { data: 'guarded' };
+  }
+}
+```
+
+Multi-tenant secrets are just another `tokenSource` resolver:
+
+```typescript
+import { ConfigService } from '@nestjs/config';
+import { createResolver } from 'nesties';
+
+const headerResolver = { paramType: 'header', paramName: 'x-tenant-token' };
+
+@RequireToken({
+  resolver: headerResolver,
+  tokenSource: async (ctx, moduleRef) => {
+    const tenantId = await createResolver({
+      paramType: 'header',
+      paramName: 'x-tenant-id',
+    })(ctx, moduleRef);
+    const config = moduleRef.get(ConfigService);
+    return config.get<string>(`TENANT_${tenantId}_TOKEN`);
+  },
+})
+```
+
+`TokenGuard` only throws when both values exist and differ, so clearing the config value temporarily disables the guard without a code change.
+
+### 6. AbortableModule
+
+Use `AbortableModule` when you want long‑running providers to respect the lifetime of the HTTP request. The module exposes a request‑scoped `AbortSignal` and wraps existing providers with [`nfkit`](https://www.npmjs.com/package/nfkit)'s `abortable` helper so that work can be canceled automatically when the client disconnects.
+
+```typescript
+import { AbortableModule, InjectAbortable } from 'nesties';
+
+@Module({
+  imports: [
+    AbortableModule.forRoot(), // registers the request-level AbortSignal
+    AbortableModule.forFeature([DemoService]), // wrap DemoService with an abortable proxy
+  ],
+})
+export class DemoModule {
+  constructor(@InjectAbortable() private readonly demo: DemoService) {}
+
+  getData() {
+    return this.demo.expensiveCall(); // aborts when request ends
+  }
+}
+```
+
+- `AbortableModule.forRoot()` should be added once (typically in `AppModule`) to expose the shared `AbortSignal`.
+- `AbortableModule.forFeature([Token], { abortableOptions })` registers one or more providers that will be resolved per request and automatically wrapped in an abortable proxy.
+- `@InjectAbortable()` can infer the token type automatically, or accept an explicit injection token, and `InjectAbortSignal()` gives direct access to the `AbortSignal` if you need to manage cancellation manually.
+
+#### Injecting `AbortSignal` with `@nestjs/axios`
+
+```typescript
+import { HttpModule, HttpService } from '@nestjs/axios';
+import {
+  AbortableModule,
+  InjectAbortable,
+  InjectAbortSignal,
+} from 'nesties';
+
+@Module({
+  imports: [
+    HttpModule,
+    AbortableModule.forRoot(),
+    AbortableModule.forFeature([HttpService]),
+  ],
+})
+export class WeatherModule {
+  constructor(
+    @InjectAbortable() private readonly http: HttpService,
+    @InjectAbortSignal() private readonly abortSignal: AbortSignal,
+  ) {}
+
+  async fetchForecast() {
+    const { data } = await this.http.axiosRef.get(
+      'https://api.example.com/weather',
+      { signal: this.abortSignal },
+    );
+    return data;
+  }
+}
+```
+
+The wrapped `HttpService` observes the same abort signal as the request, so in‑flight HTTP calls will be canceled as soon as the client disconnects or Nest aborts the request scope.
+
+### 7. I18nModule
+
+Nesties also ships an opinionated but flexible internationalization module. The typical workflow is to call `createI18n` to obtain `I18nModule` plus the `UseI18n` decorator, register locale lookup middleware (e.g., `I18nLookupMiddleware`), and then return DTOs that contain placeholders like `#{key}`—the interceptor installed by `@UseI18n()` will translate those placeholders automatically before the response leaves the server.
+
+```typescript
+import {
+  createI18n,
+  I18nService,
+  GenericReturnMessageDto,
+  I18nLookupMiddleware,
+} from 'nesties';
+
+const { I18nModule, UseI18n } = createI18n({
+  locales: ['en-US', 'zh-CN'],
+  defaultLocale: 'en-US',
+});
+
+@Module({
+  imports: [I18nModule],
+})
+export class AppModule {
+  constructor(private readonly i18n: I18nService) {
+    this.i18n.middleware(
+      I18nLookupMiddleware({
+        'en-US': { bar: 'Nesties' },
+        'zh-CN': { bar: '奈斯提' },
+      }),
+    );
+  }
+}
+
+@Controller()
+@UseI18n()
+export class GreetingController {
+  @Get()
+  async greet() {
+    return new GenericReturnMessageDto(200, 'OK', {
+      greeting: 'Hello #{bar}',
+    });
+  }
+}
+
+#### `@PutLocale()` Per-handler Overrides
+
+`@PutLocale()` lets you override how the locale is resolved for a specific handler or parameter. Pass a custom resolver (any shape supported by `ResolverDual`) when you want to read the locale from a query param, body field, or even headers different from the global resolver.
+
+```typescript
+import { GenericReturnMessageDto, PutLocale } from 'nesties';
+
+@Controller('reports')
+@UseI18n()
+export class ReportController {
+  @Get()
+  async summary(
+    @PutLocale({ paramType: 'query', paramName: 'locale' }) locale: string,
+  ) {
+    // locale now respects ?locale=...
+    return new GenericReturnMessageDto(200, 'OK', {
+      summary: 'report.summary',
+    });
+  }
+}
+```
+
+#### Custom Middleware with TypeORM
+
+You can register any number of middlewares that resolve placeholders. The example below queries a TypeORM repository to fetch translations stored in a database and falls back to the next middleware when no record is found.
+
+```typescript
+import { ExecutionContext, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  Repository,
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { I18nService } from 'nesties';
+
+@Entity()
+export class Translation {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  locale: string;
+
+  @Column()
+  key: string;
+
+  @Column()
+  value: string;
+}
+
+@Injectable()
+export class TranslationMiddleware {
+  constructor(
+    private readonly i18n: I18nService,
+    @InjectRepository(Translation)
+    private readonly repo: Repository<Translation>,
+  ) {
+    this.i18n.middleware(this.lookupFromDatabase.bind(this));
+  }
+
+  private async lookupFromDatabase(
+    locale: string,
+    key: string,
+    next: () => Promise<string | undefined>,
+    ctx?: ExecutionContext,
+  ) {
+    const found = await this.repo.findOne({ where: { locale, key } });
+    if (found) {
+      return found.value;
+    }
+    return next();
+  }
+}
+```
+
+Register `TranslationMiddleware` in any module that also imports `TypeOrmModule.forFeature([Translation])` so the service is instantiated and its middleware is attached to `I18nService`.
+
+By composing multiple middlewares (dictionaries, database lookups, remote APIs), you can build a tiered fallback chain that covers every translation source you need.
+```
+
+- `createI18n` returns both a configured module (`I18nModule`) and a decorator (`UseI18n`) that adds the bundled interceptor and Swagger metadata describing the locale resolver.
+- `UseI18n` wires the interceptor that walks the returned DTO (e.g., `GenericReturnMessageDto`) and replaces every string that contains placeholders (`Hello #{key}`) using the locale detected from the incoming request.
+- `I18nService.middleware` lets you register middlewares such as `I18nLookupMiddleware` for dictionary lookups, database resolvers, or remote translation APIs.
+- `LocalePipe`/`PutLocale` provide ergonomic access to the resolved locale inside route handlers, and you can override the resolver per parameter when necessary.
+- `I18nService.translate` and `translateString` remain available for advanced manual flows (generating strings outside of interceptor scope, building static assets, etc.).
 
 ## DTO Classes
 
