@@ -24,7 +24,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/purerosefallen/nesties.git"
+    "url": "git+https://github.com/purerosefallen/nesties.git"
   },
   "author": "Nanahira <nanahira@momobako.com>",
   "license": "MIT",
