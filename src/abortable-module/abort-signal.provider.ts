@@ -1,6 +1,6 @@
 import { Inject, Scope, Type } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
-import { createAbortSignalFromHttp } from '../abort-http-signal';
+import { createAbortSignalFromHttp } from '../utility/abort-http-signal';
 import { createProvider } from '../create-provider';
 
 export const ABORT_SIGNAL = Symbol(

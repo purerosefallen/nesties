@@ -7,3 +7,4 @@ export * from './src/token.guard';
 export * from './src/abort-utils';
 export * from './src/abortable-module';
 export * from './src/create-provider';
+export * from './src/i18n-module';

@@ -2,7 +2,7 @@
 import type { IncomingMessage } from 'http';
 import type { Request as ExpressReq } from 'express';
 import type { FastifyRequest } from 'fastify';
-import { BlankReturnMessageDto } from './return-message';
+import { BlankReturnMessageDto } from '../return-message';
 
 type AnyReq = ExpressReq | FastifyRequest | IncomingMessage;
 
