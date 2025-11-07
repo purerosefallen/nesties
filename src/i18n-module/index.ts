@@ -5,5 +5,5 @@ export * from './i18n-decorator';
 export * from './i18n-factory';
 export * from './i18n.interceptor';
 export * from './i18n-middleware.type';
-export * from './middelewares';
+export * from './middlewares';
 export * from './locale.pipe';
