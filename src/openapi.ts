@@ -1,6 +1,6 @@
 import { BlankReturnMessageDto, ReturnMessageDto } from './return-message';
 import { ApiResponse, ApiResponseOptions } from '@nestjs/swagger';
-import { ClassOrArray } from './insert-field';
+import { ClassOrArray } from './utility';
 
 export const ApiTypeResponse = (
   // eslint-disable-next-line @typescript-eslint/ban-types
