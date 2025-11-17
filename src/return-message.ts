@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { HttpException } from '@nestjs/common';
+import { InsertField } from './insert-field';
 import {
   AnyClass,
   ClassOrArray,
   getClassFromClassOrArray,
-  InsertField,
   ParseType,
-} from './insert-field';
+} from './utility';
 
 export interface PageSettingsWise {
   pageCount: number;

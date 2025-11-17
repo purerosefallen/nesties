@@ -1,6 +1,6 @@
 import { DECORATORS } from '@nestjs/swagger/dist/constants';
-import { AnyClass } from 'nesties';
 import { ApiPropertyOptions } from '@nestjs/swagger';
+import { AnyClass } from './class-types';
 
 export const getApiProperty = (
   cls: AnyClass,
