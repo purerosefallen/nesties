@@ -7,12 +7,12 @@ import {
   PipeTransform,
 } from '@nestjs/common';
 import { I18nService } from './i18n.service';
-import { createResolver, ResolverDual } from '../resolver';
+import { createResolver, ParamResolverInput } from '../resolver';
 import { ModuleRef } from '@nestjs/core';
 
 type LocaleContext = {
   ctx: ExecutionContext;
-  resolver?: ResolverDual;
+  resolver?: ParamResolverInput;
 };
 
 @Injectable()
@@ -26,7 +26,8 @@ export class LocalePipe implements PipeTransform {
     const resolver = ctx.resolver;
     if (resolver) {
       const _resolver = createResolver(resolver);
-      const locale = await _resolver(ctx.ctx, this.moduleRef);
+      const req = ctx.ctx.switchToHttp().getRequest();
+      const locale = await _resolver(req, this.moduleRef);
       return this.i18nService.getExactLocale(locale);
     } else {
       return this.i18nService.getExactLocaleFromRequest(ctx.ctx);
@@ -34,9 +35,11 @@ export class LocalePipe implements PipeTransform {
   }
 }
 
-const _dec = createParamDecorator((resolver: ResolverDual | undefined, ctx) => {
-  return { ctx, resolver };
-});
+const _dec = createParamDecorator(
+  (resolver: ParamResolverInput | undefined, ctx) => {
+    return { ctx, resolver };
+  },
+);
 
-export const PutLocale = (resolver?: ResolverDual) =>
+export const PutLocale = (resolver?: ParamResolverInput) =>
   _dec(resolver, LocalePipe);

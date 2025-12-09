@@ -2,7 +2,7 @@
 
 **Nest.js utilities**
 
-Nesties is a utility library for Nest.js applications, designed to simplify and enhance common patterns such as decorators, response structures, and request validation. This library provides a set of utilities to streamline your development workflow and improve code reuse and clarity when working with Nest.js.
+Nesties is a utility library for Nest.js applications, designed to simplify and enhance common patterns such as decorators, response structures, request validation, and HTTP-level concerns such as tokens and i18n. This library provides a set of utilities to streamline your development workflow and improve code reuse and clarity when working with Nest.js.
 
 ## Features
 
@@ -10,7 +10,10 @@ Nesties is a utility library for Nest.js applications, designed to simplify and 
 - **Predefined API Responses**: Simplified and consistent response structures for APIs.
 - **Data Validation Pipes**: Validation pipe utilities to handle query and body validation effortlessly.
 - **Custom Guards**: Easily implement token-based guards and API header validation.
+- **ParamResolver utilities**: Strongly-typed access to headers and query parameters, including dynamic and request-scoped resolvers.
 - **Pagination and Return DTOs**: DTOs for standard and paginated API responses.
+- **AbortableModule**: Request-lifetime-aware abort signals for long-running work.
+- **I18nModule**: Locale-aware translation for response DTOs and strings.
 
 ## Installation
 
@@ -34,7 +37,7 @@ Nesties allows you to merge multiple decorators of the same type (property, meth
 
 - **Property Decorator**
 
-```typescript
+```ts
 import { MergePropertyDecorators } from 'nesties';
 
 const CombinedPropertyDecorator = MergePropertyDecorators([Decorator1, Decorator2]);
@@ -42,7 +45,7 @@ const CombinedPropertyDecorator = MergePropertyDecorators([Decorator1, Decorator
 
 - **Method Decorator**
 
-```typescript
+```ts
 import { MergeMethodDecorators } from 'nesties';
 
 const CombinedMethodDecorator = MergeMethodDecorators([Decorator1, Decorator2]);
@@ -50,7 +53,7 @@ const CombinedMethodDecorator = MergeMethodDecorators([Decorator1, Decorator2]);
 
 - **Class Decorator**
 
-```typescript
+```ts
 import { MergeClassDecorators } from 'nesties';
 
 const CombinedClassDecorator = MergeClassDecorators([Decorator1, Decorator2]);
@@ -58,7 +61,7 @@ const CombinedClassDecorator = MergeClassDecorators([Decorator1, Decorator2]);
 
 - **Parameter Decorator**
 
-```typescript
+```ts
 import { MergeParameterDecorators } from 'nesties';
 
 const CombinedParameterDecorator = MergeParameterDecorators([Decorator1, Decorator2]);
@@ -68,7 +71,7 @@ const CombinedParameterDecorator = MergeParameterDecorators([Decorator1, Decorat
 
 Nesties includes a utility for defining API error responses conveniently.
 
-```typescript
+```ts
 import { ApiError } from 'nesties';
 
 @ApiError(401, 'Unauthorized access')
@@ -80,7 +83,7 @@ Nesties provides utilities for creating validation pipes with automatic data tra
 
 - **Data Pipe**
 
-```typescript
+```ts
 import { DataPipe } from 'nesties';
 
 const validationPipe = DataPipe();
@@ -88,13 +91,13 @@ const validationPipe = DataPipe();
 
 - **Decorators for Request Validation**
 
-```typescript
+```ts
 import { DataQuery, DataBody } from 'nesties';
 
 class ExampleController {
-    myMethod(@DataQuery() query: MyQueryDto, @DataBody() body: MyBodyDto) {
+  myMethod(@DataQuery() query: MyQueryDto, @DataBody() body: MyBodyDto) {
     // ...
-    }
+  }
 }
 ```
 
@@ -107,10 +110,19 @@ Nesties provides a set of DTOs for consistent API response structures, and it al
 - **PaginatedReturnMessageDto**: For paginated responses, including metadata about pagination.
 - **ReturnMessageDto**: A utility function for generating DTOs based on a class type.
 
-```typescript
-import { BlankReturnMessageDto, GenericReturnMessageDto, PaginatedReturnMessageDto, ReturnMessageDto } from 'nesties';
+```ts
+import {
+  BlankReturnMessageDto,
+  GenericReturnMessageDto,
+  PaginatedReturnMessageDto,
+  ReturnMessageDto,
+} from 'nesties';
 
-const response = new GenericReturnMessageDto(200, 'Operation successful', myData);
+const response = new GenericReturnMessageDto(
+  200,
+  'Operation successful',
+  myData,
+);
 ```
 
 #### Example Usage of `ReturnMessageDto`
@@ -119,45 +131,48 @@ const response = new GenericReturnMessageDto(200, 'Operation successful', myData
 
 Suppose we have a `User` class:
 
-```typescript
+```ts
 import { ApiProperty } from '@nestjs/swagger';
 
 class User {
-@ApiProperty({ description: 'The unique ID of the user', type: Number })
-id: number;
+  @ApiProperty({ description: 'The unique ID of the user', type: Number })
+  id: number;
 
-@ApiProperty({ description: 'The name of the user', type: String })
-name: string;
+  @ApiProperty({ description: 'The name of the user', type: String })
+  name: string;
 
-@ApiProperty({ description: 'The email address of the user', type: String })
-email: string;
+  @ApiProperty({ description: 'The email address of the user', type: String })
+  email: string;
 }
 ```
 
 You can create a return message DTO for this class:
 
-```typescript
+```ts
 import { ReturnMessageDto } from 'nesties';
 
 class UserReturnMessageDto extends ReturnMessageDto(User) {}
 
-const response = new UserReturnMessageDto(200, 'Success', { id: 1, name: 'John Doe', email: 'john.doe@example.com' });
+const response = new UserReturnMessageDto(200, 'Success', {
+  id: 1,
+  name: 'John Doe',
+  email: 'john.doe@example.com',
+});
 ```
 
-This approach automatically creates a DTO structure with the properties of `User` integrated as the data field, ensuring consistency and reusability in your API responses.
-
-
-```
+This approach automatically creates a DTO structure with the properties of `User` integrated as the `data` field, ensuring consistency and reusability in your API responses.
 
 ### 5. Token Guard
 
 `TokenGuard` validates a single “server token” before invoking a controller method. By default it reads `SERVER_TOKEN` from `ConfigService` and compares it with the `x-server-token` header, returning a `401` when they differ.
 
+Internally, `TokenGuard` uses the same resolver primitives as `ParamResolver`, so you can read tokens from headers, query parameters, or custom logic that depends on the request and `ModuleRef`.
+
 #### Quick start (defaults only)
 
 1. **Load the config module**
 
-   ```typescript
+   ```ts
    import { ConfigModule } from '@nestjs/config';
 
    @Module({
@@ -168,13 +183,13 @@ This approach automatically creates a DTO structure with the properties of `User
 
 2. **Set the secret**
 
-   ```
+   ```text
    SERVER_TOKEN=your-secure-token
    ```
 
 3. **Decorate the route**
 
-   ```typescript
+   ```ts
    import { Controller, Get } from '@nestjs/common';
    import { RequireToken } from 'nesties';
 
@@ -194,11 +209,16 @@ This approach automatically creates a DTO structure with the properties of `User
 
 When you need to override the defaults, pass options into `RequireToken`:
 
-- `resolver` (default: `{ paramType: 'header', paramName: 'x-server-token' }`): where to read the **client** token from. Accepts any `ResolverDual`, so query/header resolvers are all supported.
-- `tokenSource` (default: `'SERVER_TOKEN'`): how to read the **server** token. Provide another config key or an async resolver `(ctx, moduleRef) => Promise<string>` for dynamic sources.
+- `resolver` (default: `{ paramType: 'header', paramName: 'x-server-token' }`): where to read the **client** token from. Accepts any **ParamResolver input**:
+  - a static header/query descriptor: `{ paramType: 'header' | 'query', paramName: string }`
+  - a `ParamResolver` instance
+- `tokenSource` (default: `'SERVER_TOKEN'`): how to read the **server** token. Provide another config key or an async resolver `(req, moduleRef) => Promise<string | undefined>` for dynamic sources.
 - `errorCode` (default: `401`): HTTP status when tokens do not match.
 
-```typescript
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { RequireToken } from 'nesties';
+
 @Controller('api')
 export class ApiController {
   @Get('protected')
@@ -213,34 +233,42 @@ export class ApiController {
 }
 ```
 
-Multi-tenant secrets are just another `tokenSource` resolver:
+Multi-tenant secrets are just another `tokenSource` resolver. You can compose them using `ParamResolver`:
 
-```typescript
+```ts
 import { ConfigService } from '@nestjs/config';
-import { createResolver } from 'nesties';
+import { ParamResolver } from 'nesties';
 
-const headerResolver = { paramType: 'header', paramName: 'x-tenant-token' };
+const tenantIdResolver = new ParamResolver({
+  paramType: 'header',
+  paramName: 'x-tenant-id',
+});
 
 @RequireToken({
-  resolver: headerResolver,
-  tokenSource: async (ctx, moduleRef) => {
-    const tenantId = await createResolver({
-      paramType: 'header',
-      paramName: 'x-tenant-id',
-    })(ctx, moduleRef);
+  resolver: { paramType: 'header', paramName: 'x-tenant-token' },
+  tokenSource: async (req, moduleRef) => {
+    // reuse the same ParamResolver primitives
+    const getTenantId = tenantIdResolver.toResolverFunction();
+    const tenantId = await getTenantId(req, moduleRef);
+
     const config = moduleRef.get(ConfigService);
-    return config.get<string>(`TENANT_${tenantId}_TOKEN`);
+    return tenantId
+      ? config.get<string>(`TENANT_${tenantId}_TOKEN`)
+      : undefined;
   },
 })
+export class TenantController {
+  // ...
+}
 ```
 
 `TokenGuard` only throws when both values exist and differ, so clearing the config value temporarily disables the guard without a code change.
 
 ### 6. AbortableModule
 
-Use `AbortableModule` when you want long‑running providers to respect the lifetime of the HTTP request. The module exposes a request‑scoped `AbortSignal` and wraps existing providers with [`nfkit`](https://www.npmjs.com/package/nfkit)'s `abortable` helper so that work can be canceled automatically when the client disconnects.
+Use `AbortableModule` when you want long-running providers to respect the lifetime of the HTTP request. The module exposes a request-scoped `AbortSignal` and wraps existing providers with [`nfkit`](https://www.npmjs.com/package/nfkit)'s `abortable` helper so that work can be canceled automatically when the client disconnects.
 
-```typescript
+```ts
 import { AbortableModule, InjectAbortable } from 'nesties';
 
 @Module({
@@ -264,7 +292,7 @@ export class DemoModule {
 
 #### Injecting `AbortSignal` with `@nestjs/axios`
 
-```typescript
+```ts
 import { HttpModule, HttpService } from '@nestjs/axios';
 import {
   AbortableModule,
@@ -295,13 +323,15 @@ export class WeatherModule {
 }
 ```
 
-The wrapped `HttpService` observes the same abort signal as the request, so in‑flight HTTP calls will be canceled as soon as the client disconnects or Nest aborts the request scope.
+The wrapped `HttpService` observes the same abort signal as the request, so in-flight HTTP calls will be canceled as soon as the client disconnects or Nest aborts the request scope.
 
 ### 7. I18nModule
 
 Nesties also ships an opinionated but flexible internationalization module. The typical workflow is to call `createI18n` to obtain `I18nModule` plus the `UseI18n` decorator, register locale lookup middleware (e.g., `I18nLookupMiddleware`), and then return DTOs that contain placeholders like `#{key}`—the interceptor installed by `@UseI18n()` will translate those placeholders automatically before the response leaves the server.
 
-```typescript
+Internally, locale resolution uses the same resolver primitives as `ParamResolver`, so you can read the locale from headers, query parameters, or a custom `(req, moduleRef) => Promise<string | undefined>` function.
+
+```ts
 import {
   createI18n,
   I18nService,
@@ -312,6 +342,7 @@ import {
 const { I18nModule, UseI18n } = createI18n({
   locales: ['en-US', 'zh-CN'],
   defaultLocale: 'en-US',
+  // resolver: { paramType: 'header', paramName: 'accept-language' } by default
 });
 
 @Module({
@@ -338,12 +369,19 @@ export class GreetingController {
     });
   }
 }
+```
 
 #### `@PutLocale()` Per-handler Overrides
 
-`@PutLocale()` lets you override how the locale is resolved for a specific handler or parameter. Pass a custom resolver (any shape supported by `ResolverDual`) when you want to read the locale from a query param, body field, or even headers different from the global resolver.
+`@PutLocale()` lets you override how the locale is resolved for a specific handler or parameter. It accepts the same inputs as `ParamResolver`:
 
-```typescript
+- a static header/query descriptor: `{ paramType: 'header' | 'query', paramName: string }`
+- a `ParamResolver` instance
+- a dynamic resolver `(req, moduleRef) => Promise<string | undefined>`
+
+When you pass a static descriptor, a `ParamResolver` is created under the hood:
+
+```ts
 import { GenericReturnMessageDto, PutLocale } from 'nesties';
 
 @Controller('reports')
@@ -361,11 +399,37 @@ export class ReportController {
 }
 ```
 
+You can also plug in dynamic logic using a `ParamResolver` instance:
+
+```ts
+import { ParamResolver, PutLocale } from 'nesties';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
+import { LocaleService } from './locale.service';
+
+const dynamicLocaleResolver = new ParamResolver(async (req, ref: ModuleRef) => {
+  // example: delegate to a request-scoped LocaleService
+  const contextId = ContextIdFactory.getByRequest(req);
+  const svc = await ref.resolve(LocaleService, contextId, { strict: false });
+  return svc.detectLocale(req);
+});
+
+@Controller('dynamic-reports')
+@UseI18n()
+export class DynamicReportController {
+  @Get()
+  async summary(@PutLocale(dynamicLocaleResolver) locale: string) {
+    return new GenericReturnMessageDto(200, 'OK', {
+      summary: 'dynamic.report.summary',
+    });
+  }
+}
+```
+
 #### Custom Middleware with TypeORM
 
 You can register any number of middlewares that resolve placeholders. The example below queries a TypeORM repository to fetch translations stored in a database and falls back to the next middleware when no record is found.
 
-```typescript
+```ts
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -426,28 +490,218 @@ By composing multiple middlewares (dictionaries, database lookups, remote APIs),
 - `LocalePipe`/`PutLocale` provide ergonomic access to the resolved locale inside route handlers, and you can override the resolver per parameter when necessary.
 - `I18nService.translate` and `translateString` remain available for advanced manual flows (generating strings outside of interceptor scope, building static assets, etc.).
 
-## DTO Classes
+### 8. ParamResolver
+
+`ParamResolver` and `CombinedParamResolver` provide a small, composable abstraction over headers and query parameters. They are used internally by `TokenGuard`, the i18n utilities, and can also be used directly in controllers, pipes, and guards.
+
+#### Static header / query resolvers
+
+The simplest usage is to read a single header or query parameter:
+
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { ParamResolver } from 'nesties';
+
+const langHeaderResolver = new ParamResolver({
+  paramType: 'header',
+  paramName: 'accept-language',
+});
+
+const LangHeader = langHeaderResolver.toParamDecorator();
+const ApiLangHeader = langHeaderResolver.toApiPropertyDecorator();
+
+@Controller()
+export class LocaleController {
+  @Get('header-locale')
+  @ApiLangHeader() // documents the header in Swagger
+  getLocale(@LangHeader() locale: string | undefined) {
+    return { locale };
+  }
+}
+```
+
+For query parameters:
+
+```ts
+const langQueryResolver = new ParamResolver({
+  paramType: 'query',
+  paramName: 'locale',
+});
+
+const LangQuery = langQueryResolver.toParamDecorator();
+
+@Controller()
+export class QueryLocaleController {
+  @Get('query-locale')
+  getLocale(@LangQuery() locale: string | undefined) {
+    return { locale };
+  }
+}
+```
+
+Static header resolvers normalize header names to lowercase and perform a best-effort lookup across `req.headers` and common Express-style helpers (`req.get`, `req.header`, `req.getHeader`). Query resolvers first consult `req.query`, then fall back to parsing the current URL when needed.
+
+#### Dynamic resolvers with `ModuleRef`
+
+When you need more control, `ParamResolver` also accepts a dynamic function `(req, moduleRef) => Promise<string | undefined>`. This is ideal for request-scoped dependencies or multi-step lookups.
+
+```ts
+import { ParamResolver } from 'nesties';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
+import { RequestScopedLocaleService } from './locale.service';
+
+const dynamicLocaleResolver = new ParamResolver(
+  async (req, ref: ModuleRef) => {
+    const contextId = ContextIdFactory.getByRequest(req);
+    const svc = await ref.resolve(RequestScopedLocaleService, contextId, {
+      strict: false,
+    });
+    return svc.detectLocale(req);
+  },
+);
+
+const DynamicLocale = dynamicLocaleResolver.toParamDecorator();
+
+@Controller()
+export class DynamicLocaleController {
+  @Get('dynamic-locale')
+  getLocale(@DynamicLocale() locale: string | undefined) {
+    return { locale };
+  }
+}
+```
+
+You can also call dynamic resolvers manually via `toResolverFunction()`:
+
+```ts
+import type { Request } from 'express';
+
+@Injectable()
+export class LocaleConsumerService {
+  constructor(private readonly moduleRef: ModuleRef) {}
+
+  async getLocale(req: Request) {
+    const fn = dynamicLocaleResolver.toResolverFunction();
+    return fn(req, this.moduleRef);
+  }
+}
+```
+
+#### Combining multiple resolvers
+
+`CombinedParamResolver` lets you compose several resolvers into a single object result and merges their Swagger decorators.
+
+```ts
+import {
+  CombinedParamResolver,
+  ParamResolver,
+  TypeFromParamResolver,
+} from 'nesties';
+
+const langResolver = new ParamResolver({
+  paramType: 'header',
+  paramName: 'accept-language',
+});
+
+const tokenResolver = new ParamResolver({
+  paramType: 'header',
+  paramName: 'x-access-token',
+});
+
+const combinedResolver = new CombinedParamResolver({
+  lang: langResolver,
+  token: tokenResolver,
+});
+
+type CombinedResult = TypeFromParamResolver<typeof combinedResolver>;
+// CombinedResult = { lang: string | undefined; token: string | undefined }
+
+const CombinedParam = combinedResolver.toParamDecorator();
+const ApiCombined = combinedResolver.toApiPropertyDecorator();
+
+@Controller()
+export class CombinedController {
+  @Get('combined')
+  @ApiCombined()
+  inspect(@CombinedParam() params: CombinedResult) {
+    return params; // { lang, token }
+  }
+}
+```
+
+When used as a decorator, the combined resolver:
+
+- Executes each underlying resolver in parallel (`Promise.all`)
+- Returns a typed object where each key corresponds to the original resolver
+- Emits merged Swagger metadata for all headers / queries involved
+
+#### Request-scoped providers from resolvers
+
+Sometimes you want to treat the resolved value itself as an injectable request-scoped provider. You can derive such a provider from any `ParamResolver` or `CombinedParamResolver` using `toRequestScopedProvider()`:
+
+```ts
+import { Module } from '@nestjs/common';
+import { ParamResolver } from 'nesties';
+
+const userIdResolver = new ParamResolver({
+  paramType: 'header',
+  paramName: 'x-user-id',
+});
+
+const userIdProviderMeta = userIdResolver.toRequestScopedProvider();
+
+@Module({
+  providers: [userIdProviderMeta.provider],
+})
+export class UserModule {
+  constructor(
+    @userIdProviderMeta.inject()
+    private readonly userId: string | undefined,
+  ) {}
+
+  // userId is now resolved once per request and injectable anywhere in scope
+}
+```
+
+This pattern is useful when you want to reuse the same resolver logic in guards, interceptors, and services without manually passing around the `Request` object.
+
+#### Helper functions and deprecations
+
+- `getParamResolver(input: ParamResolverInput)`  
+  Normalizes either a static descriptor or a `ParamResolver` instance into a resolver instance.
+
+- `createResolver(input: ParamResolverInput)`  
+  Returns `ParamResolver.toResolverFunction()` for quick inline usage. This is kept for backwards compatibility and may be deprecated in favor of constructing `new ParamResolver(input)` directly.
+
+- `ApiFromResolver(input: ParamResolverInput, extras?: ApiHeaderOptions | ApiQueryOptions)`  
+  Convenience helper to generate Swagger decorators from resolver inputs.
+
+### 9. DTO Classes
 
 - **BlankReturnMessageDto**: A basic DTO for standardized API responses.
 - **BlankPaginatedReturnMessageDto**: A DTO for paginated API responses.
 - **GenericReturnMessageDto**: A generic DTO for returning data of any type.
 - **StringReturnMessageDto**: A simple DTO for string responses.
 
-```typescript
+```ts
 import { StringReturnMessageDto } from 'nesties';
 
-const response = new StringReturnMessageDto(200, 'Success', 'This is a string response');
+const response = new StringReturnMessageDto(
+  200,
+  'Success',
+  'This is a string response',
+);
 ```
 
 ## Configuration
 
 The `TokenGuard` class uses the `ConfigService` from `@nestjs/config` to access configuration values, such as the `SERVER_TOKEN`. Make sure you have `@nestjs/config` installed and configured in your Nest.js project.
 
-```typescript
+```ts
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-imports: [ConfigModule.forRoot()],
+  imports: [ConfigModule.forRoot()],
 })
 export class AppModule {}
 ```

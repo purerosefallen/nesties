@@ -1,27 +1,29 @@
 import type { Request } from 'express';
 import { Awaitable } from './utility/awaitable';
-import { ExecutionContext } from '@nestjs/common';
-import { ModuleRef } from '@nestjs/core';
+import {
+  createParamDecorator,
+  Inject,
+  Injectable,
+  PipeTransform,
+  Scope,
+} from '@nestjs/common';
+import { ModuleRef, REQUEST } from '@nestjs/core';
 import {
   ApiHeader,
   ApiHeaderOptions,
   ApiQuery,
   ApiQueryOptions,
 } from '@nestjs/swagger';
+import { createProvider } from './create-provider';
+import { MergeClassOrMethodDecorators } from './merge';
+import { Type } from '@nestjs/common/interfaces';
 
-export interface ResolverStatic {
+export interface ParamResolverInputStatic {
   paramType: 'header' | 'query';
   paramName: string;
 }
 
-export type ResolverDynamic = (
-  ctx: ExecutionContext,
-  ref: ModuleRef,
-) => Awaitable<string>;
-
-export type ResolverDual = ResolverStatic | ResolverDynamic;
-
-type AnyReq = Request & {
+export type AnyReq = Request & {
   headers?: Record<string, any>;
   query?: any;
   url?: string;
@@ -30,6 +32,15 @@ type AnyReq = Request & {
   get?: (name: string) => any;
   header?: (name: string) => any;
 };
+
+export type ParamResolverInputDynamic<R = AnyReq> = (
+  req: R,
+  ref: ModuleRef,
+) => Awaitable<string>;
+
+export type ParamResolverInputDual =
+  | ParamResolverInputStatic
+  | ParamResolverInputDynamic;
 
 const coerceToString = (v: any): string | undefined => {
   if (v == null) return undefined; // null / undefined
@@ -96,50 +107,223 @@ function getQueryValue(req: AnyReq, key: string): string | undefined {
   return undefined;
 }
 
-export const createResolver = (_options: ResolverDual): ResolverDynamic => {
-  if (typeof _options === 'function') {
-    // it's already dynamic
-    return _options;
+@Injectable()
+export class ParamResolverPipe implements PipeTransform {
+  constructor(@Inject(ModuleRef) private moduleRef: ModuleRef) {}
+
+  async transform(
+    params: { req: AnyReq; resolver: ParamResolverBase<any> },
+    metadata: any,
+  ) {
+    return params.resolver.resolve(params.req, this.moduleRef);
   }
-  const options = _options as ResolverStatic;
-  const field = options.paramType; // 'header' | 'query'
-  let name = options.paramName;
-  if (field === 'header') name = name.toLowerCase();
+}
 
-  return (ctx) => {
-    const req = ctx.switchToHttp().getRequest<AnyReq>();
+const usedParamResolverTokens = new Set<string>();
+export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
+  // for override
+  abstract toApiPropertyDecorator(
+    extras?: ApiHeaderOptions | ApiQueryOptions,
+  ): (
+    extras2?: ApiHeaderOptions | ApiQueryOptions,
+  ) => ClassDecorator & MethodDecorator;
+  // for override
+  abstract resolve(req: R, ref: ModuleRef): Awaitable<T>;
 
-    if (field === 'header') {
-      let raw = getHeader(req, name);
-      if (name === 'accept-language') raw = pickPrimaryFromAcceptLanguage(raw);
-      return raw;
+  toResolverFunction() {
+    return async (req: R, ref: ModuleRef) => this.resolve(req, ref);
+  }
+
+  toParamDecorator() {
+    const dec = createParamDecorator((_, ctx) => {
+      const req = ctx.switchToHttp().getRequest<R>();
+      return { req, resolver: this };
+    });
+
+    return (...pipes: (Type<PipeTransform> | PipeTransform)[]) =>
+      dec(ParamResolverPipe, ...pipes);
+  }
+
+  // for override
+  toString() {
+    return 'ParamResolverBase';
+  }
+
+  toRequestScopedProvider() {
+    const token = `PARAM_RESOLVER_${this.toString()}`;
+    let useToken = token;
+    if (usedParamResolverTokens.has(token)) {
+      // avoid token conflict
+      let suffix = 0;
+      const tryToken = `${token}__${suffix}`;
+      while (usedParamResolverTokens.has(tryToken)) {
+        suffix++;
+      }
+      useToken = tryToken;
     }
+    const provider = createProvider(
+      {
+        provide: useToken,
+        inject: [REQUEST, ModuleRef],
+        scope: Scope.REQUEST,
+      },
+      this.toResolverFunction(),
+    );
+    return {
+      token: useToken,
+      provider,
+      inject: () => Inject(useToken),
+    };
+  }
+}
 
-    if (field === 'query') {
-      return getQueryValue(req, name);
+export type TypeFromParamResolver<P> =
+  P extends ParamResolverBase<infer T, any> ? T : never;
+
+export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
+  string | undefined,
+  R
+> {
+  private info: ParamResolverInputStatic;
+  private dynamic: ParamResolverInputDynamic;
+  constructor(input: ParamResolverInputDual) {
+    super();
+    if (typeof input === 'function') {
+      this.dynamic = input;
+    } else {
+      this.info = { ...input };
+      if (this.info.paramType === 'header') {
+        this.info.paramName = this.info.paramName.toLowerCase();
+      }
     }
+  }
 
-    throw new Error(`Unsupported paramType: ${field}`);
-  };
+  override resolve(req: R, ref: ModuleRef): Awaitable<string | undefined> {
+    if (this.info) {
+      if (this.info.paramType === 'header') {
+        const name = this.info.paramName;
+        let raw = getHeader(req, name);
+        if (name === 'accept-language')
+          raw = pickPrimaryFromAcceptLanguage(raw);
+        return raw;
+      }
+      if (this.info.paramType === 'query') {
+        return getQueryValue(req, this.info.paramName);
+      }
+      throw new Error(`Unsupported paramType: ${this.info.paramType}`);
+    } else if (this.dynamic) {
+      return this.dynamic(req, ref);
+    }
+  }
+
+  override toString() {
+    const suffix = this.info
+      ? `${this.info.paramType.toUpperCase()}_${this.info.paramName}`
+      : `DYNAMIC`;
+    return `ParamResolver_${suffix}`;
+  }
+
+  override toApiPropertyDecorator(
+    extras: ApiHeaderOptions | ApiQueryOptions = {},
+  ) {
+    return (extras2: ApiHeaderOptions | ApiQueryOptions = {}) => {
+      if (this.info) {
+        const paramType = this.info.paramType;
+        const apiOptions: ApiHeaderOptions = {
+          name: this.info.paramName,
+          ...extras,
+          ...extras2,
+        };
+        return paramType === 'header'
+          ? ApiHeader(apiOptions)
+          : paramType === 'query'
+            ? ApiQuery({ type: 'string', ...apiOptions })
+            : () => {};
+      }
+      return () => {};
+    };
+  }
+}
+
+export class CombinedParamResolver<
+  M extends Record<any, ParamResolverBase<any, AnyReq>>,
+  R extends AnyReq = AnyReq,
+> extends ParamResolverBase<
+  {
+    [K in keyof M]: TypeFromParamResolver<M[K]>;
+  },
+  R
+> {
+  constructor(private resolvers: M) {
+    super();
+  }
+
+  override async resolve(
+    req: R,
+    ref: ModuleRef,
+  ): Promise<{ [K in keyof M]: TypeFromParamResolver<M[K]> }> {
+    const result = {} as {
+      [K in keyof M]: TypeFromParamResolver<M[K]>;
+    };
+    // use Promise.all
+    await Promise.all(
+      Object.entries(this.resolvers).map(async ([key, resolver]) => {
+        result[key as keyof M] = (await resolver.resolve(
+          req,
+          ref,
+        )) as TypeFromParamResolver<M[typeof key]>;
+      }),
+    );
+    return result;
+  }
+
+  override toString() {
+    const suffix = Object.entries(this.resolvers)
+      .map(([key, resolver]) => `${key.toString()}_${resolver.toString()}`)
+      .join('__');
+    return `CombinedParamResolver_${suffix}`;
+  }
+
+  override toApiPropertyDecorator(
+    extras: ApiHeaderOptions | ApiQueryOptions = {},
+  ) {
+    const decs = Object.values(this.resolvers).map((resolver) =>
+      resolver.toApiPropertyDecorator(extras),
+    );
+    return (extras2: ApiHeaderOptions | ApiQueryOptions) =>
+      MergeClassOrMethodDecorators(
+        decs.map((dec) =>
+          dec({
+            ...extras,
+            ...extras2,
+          }),
+        ),
+      );
+  }
+}
+
+export type ParamResolverInput =
+  | ParamResolverInputDual
+  | ParamResolverBase<string>;
+
+export const getParamResolver = (input: ParamResolverInput) => {
+  if (input instanceof ParamResolverBase) {
+    return input;
+  }
+  return new ParamResolver(input);
 };
 
+// @deprecated use ParamResolver directly
+export const createResolver = (
+  _options: ParamResolverInput,
+): ParamResolverInputDynamic => {
+  return getParamResolver(_options).toResolverFunction();
+};
+
+// @deprecated use ParamResolver directly
 export const ApiFromResolver = (
-  _options: ResolverDual,
+  _options: ParamResolverInput,
   extras: ApiHeaderOptions | ApiQueryOptions = {},
 ): ClassDecorator & MethodDecorator => {
-  if (typeof _options === 'function') {
-    // dynamic resolver, no static param info
-    return () => {};
-  }
-  const options = _options as ResolverStatic;
-  const paramType = (options as ResolverStatic)?.paramType;
-  const apiOptions: ApiHeaderOptions = {
-    name: (options as ResolverStatic).paramName,
-    ...extras,
-  };
-  return paramType === 'header'
-    ? ApiHeader(apiOptions)
-    : paramType === 'query'
-      ? ApiQuery({ type: 'string', ...apiOptions })
-      : () => {};
+  return getParamResolver(_options).toApiPropertyDecorator(extras)();
 };

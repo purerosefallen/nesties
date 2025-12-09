@@ -13,15 +13,15 @@ import { ApiError } from './openapi';
 import {
   ApiFromResolver,
   createResolver,
-  ResolverDual,
-  ResolverDynamic,
+  ParamResolverInput,
+  ParamResolverInputDynamic,
 } from './resolver';
 import { MetadataSetter, Reflector } from 'typed-reflector';
 import { ModuleRef } from '@nestjs/core';
 
 export interface RequireTokenOptions {
-  resolver?: ResolverDual;
-  tokenSource?: string | ResolverDynamic;
+  resolver?: ParamResolverInput;
+  tokenSource?: string | ParamResolverInputDynamic;
   errorCode?: number;
 }
 
@@ -59,10 +59,11 @@ export class TokenGuard implements CanActivate {
       config.resolver || { paramType: 'header', paramName: defaultHeaderName },
     );
     const tokenSource = config.tokenSource || defaultConfigName;
+    const req = context.switchToHttp().getRequest();
     const [tokenFromClient, tokenFromConfig] = await Promise.all([
-      resolver(context, this.moduleRef),
+      resolver(req, this.moduleRef),
       typeof tokenSource === 'function'
-        ? tokenSource(context, this.moduleRef)
+        ? tokenSource(req, this.moduleRef)
         : this.config.get<string>(tokenSource),
     ]);
     if (tokenFromConfig && tokenFromConfig !== tokenFromClient) {

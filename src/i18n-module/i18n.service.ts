@@ -62,12 +62,14 @@ export class I18nService extends I18n<I18nNesties.Ex> {
   private resolver = createResolver(this.i18nServiceOptions.resolver);
 
   async getExactLocaleFromRequest(ctx: ExecutionContext) {
-    const locale = await this.resolver(ctx, this.moduleRef);
+    const req = ctx.switchToHttp().getRequest();
+    const locale = await this.resolver(req, this.moduleRef);
     return this.getExactLocale(locale);
   }
 
   async translateRequest(ctx: ExecutionContext, obj: any): Promise<any> {
-    const locale = await this.resolver(ctx, this.moduleRef);
+    const req = ctx.switchToHttp().getRequest();
+    const locale = await this.resolver(req, this.moduleRef);
     return this.translate(locale, obj, ctx);
   }
 }
