@@ -18,9 +18,21 @@ import { createProvider } from './create-provider';
 import { MergeClassOrMethodDecorators } from './merge';
 import { Type } from '@nestjs/common/interfaces';
 
-export interface ParamResolverInputStatic {
+const ParamResolverCopiedFieldsFromSwagger = [
+  'required',
+  'description',
+  'example',
+  'examples',
+] as const;
+
+export interface ParamResolverInputStatic
+  extends Pick<
+    ApiHeaderOptions | ApiQueryOptions,
+    (typeof ParamResolverCopiedFieldsFromSwagger)[number]
+  > {
   paramType: 'header' | 'query';
   paramName: string;
+  openapiExtras?: ApiHeaderOptions | ApiQueryOptions;
 }
 
 export type AnyReq = Request & {
@@ -231,6 +243,13 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
         const paramType = this.info.paramType;
         const apiOptions: ApiHeaderOptions = {
           name: this.info.paramName,
+          ...ParamResolverCopiedFieldsFromSwagger.reduce((acc, field) => {
+            if (field in this.info!) {
+              (acc as any)[field] = this.info[field];
+            }
+            return acc;
+          }, {} as ApiHeaderOptions),
+          ...(this.info.openapiExtras || {}),
           ...extras,
           ...extras2,
         };
