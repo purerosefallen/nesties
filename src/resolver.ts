@@ -164,15 +164,17 @@ export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
   toRequestScopedProvider() {
     const token = `PARAM_RESOLVER_${this.toString()}`;
     let useToken = token;
+
     if (usedParamResolverTokens.has(token)) {
       // avoid token conflict
       let suffix = 0;
-      const tryToken = `${token}__${suffix}`;
-      while (usedParamResolverTokens.has(tryToken)) {
+      while (usedParamResolverTokens.has(`${token}__${suffix}`)) {
         suffix++;
       }
-      useToken = tryToken;
+      useToken = `${token}__${suffix}`;
     }
+    usedParamResolverTokens.add(useToken);
+
     const provider = createProvider(
       {
         provide: useToken,
@@ -181,6 +183,7 @@ export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
       },
       this.toResolverFunction(),
     );
+
     return {
       token: useToken,
       provider,

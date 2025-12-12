@@ -6,6 +6,7 @@ import {
   Module,
   Scope,
   Req,
+  HttpException,
 } from '@nestjs/common';
 import { Inject } from '@nestjs/common';
 import { REQUEST, ModuleRef, ContextIdFactory } from '@nestjs/core';
@@ -87,6 +88,11 @@ const langHeaderScopedProviderMeta =
 //    5.2 dynamic ParamResolver（会通过 ModuleRef 找 RequestInfoService）
 const dynamicScopedProviderMeta =
   dynamicFromServiceResolver.toRequestScopedProvider();
+// 5.3 fail resolver：直接抛 HttpException
+const failResolver = new ParamResolver(async () => {
+  throw new HttpException('boom', 418);
+});
+const failScopedProviderMeta = failResolver.toRequestScopedProvider();
 
 // ----------------- 一个 service，用非 param decorator 的方式消费 resolver -----------------
 
@@ -176,16 +182,31 @@ class ParamResolverDemoController {
   }
 }
 
+@Controller()
+class ParamResolverFailController {
+  constructor(
+    @failScopedProviderMeta.inject()
+    private readonly scopedFail: unknown,
+  ) {}
+
+  @Get('/scoped-fail-provider')
+  scopedFailProvider() {
+    // 触发 proxy（toString/valueOf）从而抛出 HttpException
+    return { value: `${this.scopedFail}` };
+  }
+}
+
 // ----------------- Module -----------------
 
 @Module({
-  controllers: [ParamResolverDemoController],
+  controllers: [ParamResolverDemoController, ParamResolverFailController],
   providers: [
     ParamResolverPipe,
     RequestInfoService,
     ResolverConsumerService,
     langHeaderScopedProviderMeta.provider,
     dynamicScopedProviderMeta.provider,
+    failScopedProviderMeta.provider,
   ],
 })
 class ParamResolverDemoModule {}
@@ -306,5 +327,13 @@ describe('ParamResolver / CombinedParamResolver e2e', () => {
 
     expect(res1.body.value).toBe('scoped:d1');
     expect(res2.body.value).toBe('scoped:d2');
+  });
+
+  it('throws HttpException when resolver fails (request-scoped provider)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/scoped-fail-provider')
+      .expect(418);
+
+    expect(res.body.message).toBe('boom');
   });
 });
