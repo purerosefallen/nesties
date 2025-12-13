@@ -17,6 +17,8 @@ import {
 import { createProvider } from './create-provider';
 import { MergeClassOrMethodDecorators } from './merge';
 import { Type } from '@nestjs/common/interfaces';
+import { ParamResolverSwaggerInfo } from './utility/param-resolver-swagger-info.type';
+import { ResolverSwaggerMap } from './utility/resolver-swagger-map';
 
 const ParamResolverCopiedFieldsFromSwagger = [
   'required',
@@ -132,12 +134,6 @@ export class ParamResolverPipe implements PipeTransform {
 }
 
 const usedParamResolverTokens = new Set<string>();
-export interface ParamResolverSwaggerInfo {
-  swagger: (
-    extras: ApiHeaderOptions | ApiQueryOptions,
-  ) => ClassDecorator & MethodDecorator;
-  token: string;
-}
 
 export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
   // for override
@@ -194,6 +190,9 @@ export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
       },
       this.toResolverFunction(),
     );
+
+    const swaggerInfos = this.toSwaggerInfo();
+    ResolverSwaggerMap.set(useToken, swaggerInfos);
 
     return {
       token: useToken,

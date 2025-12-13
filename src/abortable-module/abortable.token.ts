@@ -4,6 +4,7 @@ import { ABORT_SIGNAL } from './abort-signal.provider';
 import { ContextIdFactory, ModuleRef, REQUEST } from '@nestjs/core';
 import { createProvider } from '../create-provider';
 import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
+import { createMutateInject } from '../utility/create-mutate-inject';
 
 const tokenMemo = new Map<any, symbol>();
 export const abortableToken = (token: InjectionToken) => {
@@ -19,25 +20,7 @@ export const abortableToken = (token: InjectionToken) => {
  *   @InjectAbortable(SomeService)
  *   @InjectAbortable()  // 自动推断类型
  */
-export function InjectAbortable(token?: InjectionToken): ParameterDecorator {
-  return (target, propertyKey, parameterIndex) => {
-    let actualToken = token;
-
-    if (!actualToken) {
-      // 利用 reflect-metadata 获取参数类型
-      const paramTypes: any[] =
-        Reflect.getMetadata('design:paramtypes', target, propertyKey) || [];
-      actualToken = paramTypes[parameterIndex];
-      if (!actualToken) {
-        throw new Error(
-          `@InjectAbortable() cannot infer type from metadata: ${target.constructor?.name}[${parameterIndex}]`,
-        );
-      }
-    }
-
-    Inject(abortableToken(actualToken))(target, propertyKey, parameterIndex);
-  };
-}
+export const InjectAbortable = createMutateInject(abortableToken);
 
 export function createAbortableProvider<T>(
   token: InjectionToken<T>,
