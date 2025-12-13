@@ -19,6 +19,8 @@ import { MergeClassOrMethodDecorators } from './merge';
 import { Type } from '@nestjs/common/interfaces';
 import { ParamResolverSwaggerInfo } from './utility/param-resolver-swagger-info.type';
 import { ResolverSwaggerMap } from './utility/resolver-swagger-map';
+import { BlankReturnMessageDto } from './return-message';
+import { ApiError } from './openapi';
 
 const ParamResolverCopiedFieldsFromSwagger = [
   'required',
@@ -223,6 +225,16 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
     }
   }
 
+  private handleResolveValue(v: any) {
+    if (this.info?.required && v == null) {
+      throw new BlankReturnMessageDto(
+        400,
+        `Required parameter '${this.info.paramName}' in ${this.info.paramType} is missing`,
+      ).toException();
+    }
+    return v;
+  }
+
   override resolve(req: R, ref: ModuleRef): Awaitable<string | undefined> {
     if (this.info) {
       if (this.info.paramType === 'header') {
@@ -230,10 +242,10 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
         let raw = getHeader(req, name);
         if (name === 'accept-language')
           raw = pickPrimaryFromAcceptLanguage(raw);
-        return raw;
+        return this.handleResolveValue(raw);
       }
       if (this.info.paramType === 'query') {
-        return getQueryValue(req, this.info.paramName);
+        return this.handleResolveValue(getQueryValue(req, this.info.paramName));
       }
       throw new Error(`Unsupported paramType: ${this.info.paramType}`);
     } else if (this.dynamic) {
@@ -277,6 +289,14 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
         swagger,
         token: this.toString(),
       },
+      ...(this.info?.required
+        ? [
+            {
+              swagger: () => ApiError(400, 'Invalid request parameters'),
+              token: `__missing_required_400__`,
+            },
+          ]
+        : []),
     ];
   }
 }

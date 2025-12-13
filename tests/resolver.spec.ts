@@ -94,6 +94,27 @@ const failResolver = new ParamResolver(async () => {
 });
 const failScopedProviderMeta = failResolver.toRequestScopedProvider();
 
+// required resolvers
+
+// 1.x required header：X-Req
+const requiredHeaderResolver = new ParamResolver({
+  paramType: 'header',
+  paramName: 'X-Req',
+  required: true,
+});
+const RequiredHeader = requiredHeaderResolver.toParamDecorator();
+
+// 2.x required query：req
+const requiredQueryResolver = new ParamResolver({
+  paramType: 'query',
+  paramName: 'req',
+  required: true,
+});
+const RequiredQuery = requiredQueryResolver.toParamDecorator();
+
+const requiredHeaderScopedProviderMeta =
+  requiredHeaderResolver.toRequestScopedProvider();
+
 // ----------------- 一个 service，用非 param decorator 的方式消费 resolver -----------------
 
 @Injectable()
@@ -180,6 +201,18 @@ class ParamResolverDemoController {
   scopedDynamicProvider() {
     return { value: this.scopedDynamic };
   }
+
+  // 1.r 单个 required header resolver
+  @Get('/required-header')
+  requiredHeader(@RequiredHeader() v: string) {
+    return { value: v };
+  }
+
+  // 2.r 单个 required query resolver
+  @Get('/required-query')
+  requiredQuery(@RequiredQuery() v: string) {
+    return { value: v };
+  }
 }
 
 @Controller()
@@ -196,10 +229,27 @@ class ParamResolverFailController {
   }
 }
 
+@Controller()
+class ParamResolverRequiredController {
+  constructor(
+    @requiredHeaderScopedProviderMeta.inject()
+    private readonly scopedRequiredHeader: string,
+  ) {}
+
+  @Get('/scoped-required-header-provider')
+  scopedRequiredHeaderProvider() {
+    return { value: this.scopedRequiredHeader };
+  }
+}
+
 // ----------------- Module -----------------
 
 @Module({
-  controllers: [ParamResolverDemoController, ParamResolverFailController],
+  controllers: [
+    ParamResolverDemoController,
+    ParamResolverFailController,
+    ParamResolverRequiredController,
+  ],
   providers: [
     ParamResolverPipe,
     RequestInfoService,
@@ -207,6 +257,7 @@ class ParamResolverFailController {
     langHeaderScopedProviderMeta.provider,
     dynamicScopedProviderMeta.provider,
     failScopedProviderMeta.provider,
+    requiredHeaderScopedProviderMeta.provider,
   ],
 })
 class ParamResolverDemoModule {}
@@ -335,5 +386,78 @@ describe('ParamResolver / CombinedParamResolver e2e', () => {
       .expect(418);
 
     expect(res.body.message).toBe('boom');
+  });
+
+  it('returns 400 when required header is missing', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/required-header')
+      .expect(400);
+
+    // BlankReturnMessageDto 的 body 结构取决于你实现
+    // 这里做“尽量稳”的断言：至少 message 里有我们抛的提示
+    expect(JSON.stringify(res.body)).toContain(
+      "Required parameter 'x-req' in header is missing",
+    );
+  });
+
+  it('returns 400 when required query is missing', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/required-query')
+      .expect(400);
+
+    expect(JSON.stringify(res.body)).toContain(
+      "Required parameter 'req' in query is missing",
+    );
+  });
+
+  it('passes when required header/query are provided', async () => {
+    const res1 = await request(app.getHttpServer())
+      .get('/required-header')
+      .set('X-Req', 'ok')
+      .expect(200);
+    expect(res1.body.value).toBe('ok');
+
+    const res2 = await request(app.getHttpServer())
+      .get('/required-query?req=ok')
+      .expect(200);
+    expect(res2.body.value).toBe('ok');
+  });
+
+  it('returns 400 when required resolver fails (request-scoped provider)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/scoped-required-header-provider')
+      .expect(400);
+
+    expect(JSON.stringify(res.body)).toContain(
+      "Required parameter 'x-req' in header is missing",
+    );
+  });
+
+  it('works when required resolver is satisfied (request-scoped provider)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/scoped-required-header-provider')
+      .set('X-Req', 'ok')
+      .expect(200);
+
+    expect(res.body.value).toBe('ok');
+  });
+
+  it('returns 400 when required resolver fails (request-scoped provider)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/scoped-required-header-provider')
+      .expect(400);
+
+    expect(JSON.stringify(res.body)).toContain(
+      "Required parameter 'x-req' in header is missing",
+    );
+  });
+
+  it('works when required resolver is satisfied (request-scoped provider)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/scoped-required-header-provider')
+      .set('X-Req', 'ok')
+      .expect(200);
+
+    expect(res.body.value).toBe('ok');
   });
 });
