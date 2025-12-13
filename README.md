@@ -676,7 +676,163 @@ This pattern is useful when you want to reuse the same resolver logic in guards,
 - `ApiFromResolver(input: ParamResolverInput, extras?: ApiHeaderOptions | ApiQueryOptions)`  
   Convenience helper to generate Swagger decorators from resolver inputs.
 
-### 9. DTO Classes
+### ApiInject: Making API Contracts Explicit via Dependency Injection
+
+In real-world Nest.js applications, many API contracts are *implicit* rather than declared directly on controllers.
+
+Common examples include:
+
+- Authentication tokens read from headers
+- Tenant or locale identifiers propagated through services
+- Feature flags or internal routing hints extracted from requests
+
+These values are often accessed deep inside services, guards, or interceptors—far away from the controller layer where API documentation (Swagger) is usually defined.
+
+This creates a long-standing tension:
+
+- **Dependency Injection (DI)** knows what a controller *depends on*
+- **Swagger decorators** describe what an API *expects from the client*
+- But the two are traditionally maintained **separately and manually**
+
+`@ApiInject()` exists to bridge this gap.
+
+---
+
+#### What `@ApiInject()` Does
+
+`@ApiInject()` is an explicit opt-in decorator that behaves like `@Inject()`, but additionally allows Nesties to **infer API contract metadata from the dependency graph** and attach the corresponding Swagger documentation automatically.
+
+In other words:
+
+> If a controller explicitly injects something that depends on request parameters,  
+> then those parameters are part of the API contract and should be documented.
+
+---
+
+#### Why This Is Explicit (Not Magic)
+
+A key design principle of Nesties is that **API contracts should never be inferred silently**.
+
+`@ApiInject()` is intentionally *not* a drop-in replacement for `@Inject()`.
+
+By choosing to write:
+
+```ts
+@ApiInject()
+private readonly articleService: ArticleService;
+```
+
+you are explicitly stating:
+
+> “This dependency participates in the public API contract of this controller.”
+
+Only dependencies injected via `@ApiInject()` are eligible for automatic Swagger inference.
+Regular `@Inject()` remains side-effect free.
+
+This makes the behavior:
+- Predictable
+- Auditable
+- Easy to reason about in code review
+
+---
+
+#### How Swagger Metadata Is Inferred
+
+`@ApiInject()` works in combination with `ParamResolver` and request-scoped providers.
+
+At a high level:
+
+1. `ParamResolver` declares **how** a value is resolved from a request (header, query, or dynamic logic)
+2. `toRequestScopedProvider()` turns that resolver into an injectable token
+3. Services depend on those tokens through standard Nest.js DI
+4. `@ApiInject()` walks the dependency graph starting from the injected token
+5. Any Swagger metadata declared by resolvers is automatically applied to the controller
+
+This ensures that:
+
+- Swagger documentation reflects *actual runtime requirements*
+- API headers and query parameters are documented once, at their source
+- Changes to resolver logic propagate consistently across all consumers
+
+---
+
+#### Example: Documenting Headers via Dependency Injection
+
+```ts
+const userTokenResolver = new ParamResolver({
+    paramType: 'header',
+    paramName: 'x-user-token',
+});
+
+const userTokenProvider = userTokenResolver.toRequestScopedProvider();
+
+@Injectable()
+class ArticleService {
+    constructor(
+        @userTokenProvider.inject()
+        private readonly userToken: string | undefined,
+    ) {}
+}
+
+@Controller('articles')
+export class ArticleController {
+    constructor(
+        @ApiInject()
+        private readonly articleService: ArticleService,
+    ) {}
+    
+    @Get()
+    list() {
+        // ...
+    }
+}
+```
+
+In this example:
+
+- `ArticleService` depends on `x-user-token`
+- The controller explicitly opts into API inference via `@ApiInject()`
+- `x-user-token` is automatically documented in Swagger
+- No manual `@ApiHeader()` is required on the controller
+
+---
+
+#### Design Philosophy
+
+`@ApiInject()` is based on a simple idea:
+
+> **Dependency Injection already encodes API contracts — we should not ignore that information.**
+
+Rather than duplicating knowledge across:
+- controllers (Swagger decorators)
+- services (request access logic)
+- guards and interceptors
+
+Nesties treats DI as the single source of truth and lets Swagger documentation follow from it.
+
+This approach improves:
+- Consistency between implementation and documentation
+- Maintainability in large codebases
+- Confidence that documented APIs match actual runtime behavior
+
+---
+
+#### When to Use (and Not Use) `@ApiInject()`
+
+Use `@ApiInject()` when:
+- A dependency influences how requests are interpreted
+- A resolver reads from headers or query parameters
+- The dependency represents part of the public API contract
+
+Avoid `@ApiInject()` when:
+- The dependency is purely internal
+- It does not depend on request data
+- You do not want it reflected in Swagger documentation
+
+Keeping this distinction explicit is what allows Nesties to scale safely in large teams.
+
+
+### 10. DTO Classes
 
 - **BlankReturnMessageDto**: A basic DTO for standardized API responses.
 - **BlankPaginatedReturnMessageDto**: A DTO for paginated API responses.
