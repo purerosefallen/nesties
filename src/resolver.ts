@@ -132,13 +132,24 @@ export class ParamResolverPipe implements PipeTransform {
 }
 
 const usedParamResolverTokens = new Set<string>();
+export interface ParamResolverSwaggerInfo {
+  swagger: (
+    extras: ApiHeaderOptions | ApiQueryOptions,
+  ) => ClassDecorator & MethodDecorator;
+  token: string;
+}
+
 export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
   // for override
-  abstract toApiPropertyDecorator(
-    extras?: ApiHeaderOptions | ApiQueryOptions,
-  ): (
-    extras2?: ApiHeaderOptions | ApiQueryOptions,
-  ) => ClassDecorator & MethodDecorator;
+  abstract toSwaggerInfo(): ParamResolverSwaggerInfo[];
+
+  toApiPropertyDecorator(extras: ApiHeaderOptions | ApiQueryOptions = {}) {
+    const swaggerInfo = this.toSwaggerInfo();
+    return (extras2: ApiHeaderOptions | ApiQueryOptions = {}) =>
+      MergeClassOrMethodDecorators(
+        swaggerInfo.map((info) => info.swagger({ ...extras, ...extras2 })),
+      );
+  }
   // for override
   abstract resolve(req: R, ref: ModuleRef): Awaitable<T>;
 
@@ -238,10 +249,8 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
     return `ParamResolver_${suffix}`;
   }
 
-  override toApiPropertyDecorator(
-    extras: ApiHeaderOptions | ApiQueryOptions = {},
-  ) {
-    return (extras2: ApiHeaderOptions | ApiQueryOptions = {}) => {
+  toSwaggerInfo(): ParamResolverSwaggerInfo[] {
+    const swagger = (extras2: ApiHeaderOptions | ApiQueryOptions = {}) => {
       if (this.info) {
         const paramType = this.info.paramType;
         const apiOptions: ApiHeaderOptions = {
@@ -253,7 +262,6 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
             return acc;
           }, {} as ApiHeaderOptions),
           ...(this.info.openapiExtras || {}),
-          ...extras,
           ...extras2,
         };
         return paramType === 'header'
@@ -264,6 +272,13 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
       }
       return () => {};
     };
+
+    return [
+      {
+        swagger,
+        token: this.toString(),
+      },
+    ];
   }
 }
 
@@ -306,21 +321,10 @@ export class CombinedParamResolver<
     return `CombinedParamResolver_${suffix}`;
   }
 
-  override toApiPropertyDecorator(
-    extras: ApiHeaderOptions | ApiQueryOptions = {},
-  ) {
-    const decs = Object.values(this.resolvers).map((resolver) =>
-      resolver.toApiPropertyDecorator(extras),
+  toSwaggerInfo() {
+    return Object.values(this.resolvers).flatMap((resolver) =>
+      resolver.toSwaggerInfo(),
     );
-    return (extras2: ApiHeaderOptions | ApiQueryOptions) =>
-      MergeClassOrMethodDecorators(
-        decs.map((dec) =>
-          dec({
-            ...extras,
-            ...extras2,
-          }),
-        ),
-      );
   }
 }
 
