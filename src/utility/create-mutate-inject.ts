@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
 import { Inject } from '@nestjs/common';
 import { AnyClass } from './class-types';
