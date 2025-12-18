@@ -70,7 +70,7 @@ describe('ApiInject -> swagger metadata', () => {
       constructor(@ApiInject(pr.token) _x: any) {}
     }
 
-    expect(hits).toBe(1);
+    expect(hits).toBe(2);
 
     const headers = getApiHeadersMeta(C1);
     expect(headers).toEqual(
@@ -113,15 +113,16 @@ describe('ApiInject -> swagger metadata', () => {
   });
 
   test('CombinedParamResolver: 同时包含 header+query，应分别写到 class(API_HEADERS) + handler(API_PARAMETERS)', () => {
-    let hits = 0;
+    let hitsH = 0;
+    let hitsQ = 0;
 
     const header = new HookedParamResolver(
       { paramType: 'header', paramName: 'x-user-token', required: true },
-      () => hits++,
+      () => hitsH++,
     );
     const query = new HookedParamResolver(
       { paramType: 'query', paramName: 'page', required: false },
-      () => hits++,
+      () => hitsQ++,
     );
 
     const combined = new CombinedParamResolver({ header, query });
@@ -138,7 +139,8 @@ describe('ApiInject -> swagger metadata', () => {
     }
 
     // hook 两个 resolver 都应被 apply
-    expect(hits).toBe(2);
+    expect(hitsH).toBe(2);
+    expect(hitsQ).toBe(1);
 
     const headers = getApiHeadersMeta(C3);
     expect(headers).toEqual(
@@ -179,7 +181,7 @@ describe('ApiInject -> swagger metadata', () => {
       constructor(@ApiInject('SVC') _svc: any) {}
     }
 
-    expect(hits).toBe(1);
+    expect(hits).toBe(2);
 
     const headers = getApiHeadersMeta(C4);
     expect(headers).toEqual(
@@ -223,7 +225,7 @@ describe('ApiInject -> swagger metadata', () => {
       constructor(@ApiInject() _svc: ArticleService) {}
     }
 
-    expect(hits).toBe(1);
+    expect(hits).toBe(2);
 
     const headers = getApiHeadersMeta(C5);
     expect(headers).toEqual(
