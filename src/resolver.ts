@@ -21,6 +21,7 @@ import { ParamResolverSwaggerInfo } from './utility/param-resolver-swagger-info.
 import { ResolverSwaggerMap } from './utility/resolver-swagger-map';
 import { BlankReturnMessageDto } from './return-message';
 import { ApiError } from './openapi';
+import { uniqBy } from './utility/uniq-by';
 
 const ParamResolverCopiedFieldsFromSwagger = [
   'required',
@@ -138,11 +139,30 @@ export class ParamResolverPipe implements PipeTransform {
 const usedParamResolverTokens = new Set<string>();
 
 export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
+  protected extraSwagger: ParamResolverSwaggerInfo[] = [];
+
+  addExtraDecorator(
+    dec: (
+      extras?: ApiHeaderOptions | ApiQueryOptions,
+    ) => ClassDecorator & MethodDecorator,
+    token = Math.random().toString(36),
+  ) {
+    this.extraSwagger.push({
+      token,
+      swagger: dec,
+    });
+    return this;
+  }
+
   // for override
-  abstract toSwaggerInfo(): ParamResolverSwaggerInfo[];
+  toSwaggerInfo(
+    extras: ParamResolverSwaggerInfo[] = [],
+  ): ParamResolverSwaggerInfo[] {
+    return uniqBy([...this.extraSwagger, ...extras], (info) => info.token);
+  }
 
   toApiPropertyDecorator(extras: ApiHeaderOptions | ApiQueryOptions = {}) {
-    const swaggerInfo = this.toSwaggerInfo();
+    const swaggerInfo = uniqBy(this.toSwaggerInfo(), (info) => info.token);
     return (extras2: ApiHeaderOptions | ApiQueryOptions = {}) =>
       MergeClassOrMethodDecorators(
         swaggerInfo.map((info) => info.swagger({ ...extras, ...extras2 })),
@@ -211,8 +231,8 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
   string | undefined,
   R
 > {
-  private info: ParamResolverInputStatic;
-  private dynamic: ParamResolverInputDynamic;
+  private readonly info: ParamResolverInputStatic;
+  private readonly dynamic: ParamResolverInputDynamic;
   constructor(input: ParamResolverInputDual) {
     super();
     if (typeof input === 'function') {
@@ -260,7 +280,9 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
     return `ParamResolver_${suffix}`;
   }
 
-  toSwaggerInfo(): ParamResolverSwaggerInfo[] {
+  toSwaggerInfo(
+    extras: ParamResolverSwaggerInfo[] = [],
+  ): ParamResolverSwaggerInfo[] {
     const swagger = (extras2: ApiHeaderOptions | ApiQueryOptions = {}) => {
       if (this.info) {
         const paramType = this.info.paramType;
@@ -284,7 +306,7 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
       return () => {};
     };
 
-    return [
+    return super.toSwaggerInfo([
       {
         swagger,
         token: this.toString(),
@@ -297,7 +319,8 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
             },
           ]
         : []),
-    ];
+      ...extras,
+    ]);
   }
 }
 
@@ -340,10 +363,11 @@ export class CombinedParamResolver<
     return `CombinedParamResolver_${suffix}`;
   }
 
-  toSwaggerInfo() {
-    return Object.values(this.resolvers).flatMap((resolver) =>
+  toSwaggerInfo(extras: ParamResolverSwaggerInfo[] = []) {
+    const combined = Object.values(this.resolvers).flatMap((resolver) =>
       resolver.toSwaggerInfo(),
     );
+    return super.toSwaggerInfo([...combined, ...extras]);
   }
 }
 
