@@ -19,6 +19,7 @@ import {
   CombinedParamResolver,
   ParamResolver,
   ParamResolverPipe,
+  TransformParamResolver,
   TypeFromParamResolver,
 } from '../src/resolver';
 
@@ -138,6 +139,58 @@ class ResolverConsumerService {
   }
 }
 
+// ✅ TRANSFORM TEST ADD: 给 TransformParamResolver 用的 request-scope service
+@Injectable({ scope: Scope.REQUEST })
+class LangMapService {
+  // 故意依赖 REQUEST，证明是 request-scope & 可用 ref.resolve + ContextIdFactory.getByRequest
+  constructor(@Inject(REQUEST) private readonly req: AnyReq) {}
+
+  /**
+   * 把各种输入语言码归一化一下
+   * - zh-hant / zh-Hant -> zh-Hant
+   * - en-us / en-US -> en-US
+   * - 其他保持原样
+   */
+  normalizeLang(input?: string): string | undefined {
+    if (!input) return undefined;
+    const s = String(input).trim();
+    if (!s) return undefined;
+
+    const lower = s.toLowerCase();
+    if (lower === 'zh-hant' || lower === 'zh-tw') return 'zh-Hant';
+    if (lower === 'en-us') return 'en-US';
+    return s;
+  }
+
+  // 用来证明真的是“每个请求独立”的：取一个 header 拼进去
+  requestMarker(): string {
+    const m =
+      this.req.headers?.['x-marker'] ??
+      Object.entries(this.req.headers ?? {}).find(
+        ([k]) => k.toLowerCase() === 'x-marker',
+      )?.[1] ??
+      'none';
+    return Array.isArray(m) ? String(m[0]) : String(m);
+  }
+}
+
+// ✅ TRANSFORM TEST ADD: TransformParamResolver（基于 header resolver + ref.resolve request-scope service）
+const transformedLangResolver = new TransformParamResolver(
+  langHeaderResolver,
+  async (value, ref, req) => {
+    const svc = await ref.resolve(
+      LangMapService,
+      ContextIdFactory.getByRequest(req),
+      { strict: false },
+    );
+
+    const normalized = svc.normalizeLang(value) ?? 'missing';
+    return `normalized:${normalized}@${svc.requestMarker()}`;
+  },
+);
+
+const TransformedLang = transformedLangResolver.toParamDecorator();
+
 // ----------------- Controller：把所有使用姿势压在几个路由上 -----------------
 
 @Controller()
@@ -213,6 +266,12 @@ class ParamResolverDemoController {
   requiredQuery(@RequiredQuery() v: string) {
     return { value: v };
   }
+
+  // ✅ TRANSFORM TEST ADD: TransformParamResolver + ModuleRef resolve service
+  @Get('/transform-param')
+  transformParam(@TransformedLang() v: string) {
+    return { value: v };
+  }
 }
 
 @Controller()
@@ -253,6 +312,7 @@ class ParamResolverRequiredController {
   providers: [
     ParamResolverPipe,
     RequestInfoService,
+    LangMapService,
     ResolverConsumerService,
     langHeaderScopedProviderMeta.provider,
     dynamicScopedProviderMeta.provider,
@@ -459,5 +519,32 @@ describe('ParamResolver / CombinedParamResolver e2e', () => {
       .expect(200);
 
     expect(res.body.value).toBe('ok');
+  });
+
+  it('supports TransformParamResolver and can resolve a request-scoped service via ModuleRef', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/transform-param')
+      .set('X-Lang', 'zh-hant')
+      .set('X-Marker', 'm1')
+      .expect(200);
+
+    expect(res.body.value).toBe('normalized:zh-Hant@m1');
+  });
+
+  it('TransformParamResolver is request-isolated (marker differs per request)', async () => {
+    const res1 = await request(app.getHttpServer())
+      .get('/transform-param')
+      .set('X-Lang', 'en-us')
+      .set('X-Marker', 'A')
+      .expect(200);
+
+    const res2 = await request(app.getHttpServer())
+      .get('/transform-param')
+      .set('X-Lang', 'en-us')
+      .set('X-Marker', 'B')
+      .expect(200);
+
+    expect(res1.body.value).toBe('normalized:en-US@A');
+    expect(res2.body.value).toBe('normalized:en-US@B');
   });
 });

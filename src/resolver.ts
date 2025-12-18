@@ -280,7 +280,7 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
     return `ParamResolver_${suffix}`;
   }
 
-  toSwaggerInfo(
+  override toSwaggerInfo(
     extras: ParamResolverSwaggerInfo[] = [],
   ): ParamResolverSwaggerInfo[] {
     const swagger = (extras2: ApiHeaderOptions | ApiQueryOptions = {}) => {
@@ -363,11 +363,37 @@ export class CombinedParamResolver<
     return `CombinedParamResolver_${suffix}`;
   }
 
-  toSwaggerInfo(extras: ParamResolverSwaggerInfo[] = []) {
+  override toSwaggerInfo(extras: ParamResolverSwaggerInfo[] = []) {
     const combined = Object.values(this.resolvers).flatMap((resolver) =>
       resolver.toSwaggerInfo(),
     );
     return super.toSwaggerInfo([...combined, ...extras]);
+  }
+}
+
+export class TransformParamResolver<
+  T,
+  U,
+  R extends AnyReq = AnyReq,
+> extends ParamResolverBase<U, R> {
+  constructor(
+    private baseResolver: ParamResolverBase<T, R>,
+    private transformFn: (value: T, ref: ModuleRef, req: R) => Awaitable<U>,
+  ) {
+    super();
+  }
+
+  override async resolve(req: R, ref: ModuleRef): Promise<U> {
+    const baseValue = await this.baseResolver.resolve(req, ref);
+    return this.transformFn(baseValue, ref, req);
+  }
+
+  override toString() {
+    return `Transform_${this.baseResolver.toString()}`;
+  }
+
+  override toSwaggerInfo(extras: ParamResolverSwaggerInfo[] = []) {
+    return this.baseResolver.toSwaggerInfo(extras);
   }
 }
 
