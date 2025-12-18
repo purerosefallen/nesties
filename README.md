@@ -492,7 +492,7 @@ By composing multiple middlewares (dictionaries, database lookups, remote APIs),
 
 ### 8. ParamResolver
 
-`ParamResolver` and `CombinedParamResolver` provide a small, composable abstraction over headers and query parameters. They are used internally by `TokenGuard`, the i18n utilities, and can also be used directly in controllers, pipes, and guards.
+`ParamResolver` provide a small, composable abstraction over headers and query parameters. They are used internally by `TokenGuard`, the i18n utilities, and can also be used directly in controllers, pipes, and guards.
 
 #### Static header / query resolvers
 
@@ -634,6 +634,119 @@ When used as a decorator, the combined resolver:
 - Executes each underlying resolver in parallel (`Promise.all`)
 - Returns a typed object where each key corresponds to the original resolver
 - Emits merged Swagger metadata for all headers / queries involved
+
+#### Transforming resolved values with `TransformParamResolver`
+
+Sometimes reading a header or query parameter is only the first step. You often want to **normalize**, **validate**, or **enrich** that value before it reaches your handler—especially when the transformation needs access to request-scoped dependencies via `ModuleRef`.
+
+`TransformParamResolver` is a thin wrapper around any `ParamResolverBase<T>` that applies a function `T -> U`:
+
+- It **reuses** the base resolver’s extraction logic (header/query/dynamic).
+- It runs a **transform function** that can be sync or async.
+- It receives `(value, moduleRef, req)` so you can:
+  - normalize formats (`'zh-hant' -> 'zh-Hant'`)
+  - parse primitives (`string -> number/boolean/date`)
+  - validate and throw `HttpException` / `BlankReturnMessageDto`
+  - hydrate values (e.g., `token -> user`) by resolving services from DI
+- Swagger metadata is **inherited** from the base resolver, so the API contract stays accurate and not duplicated.
+
+##### Basic example: normalize a header value
+
+```ts
+import { Controller, Get } from '@nestjs/common';
+import { ParamResolver, TransformParamResolver } from 'nesties';
+
+const rawLang = new ParamResolver({
+  paramType: 'header',
+  paramName: 'accept-language',
+});
+
+const normalizedLang = new TransformParamResolver(
+  rawLang,
+  (value) => {
+    if (!value) return undefined;
+    const v = value.split(',')[0]?.trim() ?? value;
+    const lower = v.toLowerCase();
+    if (lower === 'zh-hant' || lower === 'zh-tw') return 'zh-Hant';
+    if (lower === 'en-us') return 'en-US';
+    return v;
+  },
+);
+
+const Lang = normalizedLang.toParamDecorator();
+
+@Controller()
+export class LocaleController {
+  @Get('lang')
+  getLang(@Lang() lang: string | undefined) {
+    return { lang };
+  }
+}
+```
+
+##### Advanced example: resolve a request-scoped service inside the transform
+
+Because `TransformParamResolver` receives `ModuleRef` and `req`, you can resolve request-scoped providers using `ContextIdFactory.getByRequest(req)`.
+
+```ts
+import { Injectable, Scope } from '@nestjs/common';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
+import { ParamResolver, TransformParamResolver } from 'nesties';
+
+@Injectable({ scope: Scope.REQUEST })
+class LocaleService {
+  normalize(input?: string) {
+    if (!input) return undefined;
+    const lower = input.toLowerCase();
+    if (lower === 'zh-hant') return 'zh-Hant';
+    return input;
+  }
+}
+
+const rawLocale = new ParamResolver({
+  paramType: 'query',
+  paramName: 'locale',
+});
+
+const localeWithService = new TransformParamResolver(
+  rawLocale,
+  async (value, ref: ModuleRef, req) => {
+    const ctxId = ContextIdFactory.getByRequest(req);
+    const svc = await ref.resolve(LocaleService, ctxId, { strict: false });
+    return svc.normalize(value);
+  },
+);
+```
+
+##### Composing multiple transforms (nesting)
+
+`TransformParamResolver` can be used as the base resolver of another `TransformParamResolver`, forming a pipeline of transformations.
+
+```ts
+import { TransformParamResolver } from 'nesties';
+
+// rawLocale: ParamResolverBase<string | undefined>
+
+// Step 1: normalize
+const normalized = new TransformParamResolver(rawLocale, (v) =>
+  v ? v.trim() : undefined,
+);
+
+// Step 2: validate / coerce
+const validated = new TransformParamResolver(normalized, (v) => {
+  if (!v) return 'en-US';
+  return v;
+});
+
+// validated resolves to string
+const Locale = validated.toParamDecorator();
+```
+
+##### Notes
+
+- `TransformParamResolver` does **not** change where the parameter comes from—only how the resolved value is shaped.
+- Swagger decorators are inherited from the base resolver, so documentation remains consistent even when you compose multiple transforms.
+- For multi-field inputs, you can first use `CombinedParamResolver`, then transform the combined object into a richer type (e.g., `{ lang, token } -> { locale, user }`).
 
 #### Request-scoped providers from resolvers
 
