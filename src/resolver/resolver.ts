@@ -22,6 +22,7 @@ import { ResolverSwaggerMap } from '../utility/resolver-swagger-map';
 import { BlankReturnMessageDto } from '../return-message';
 import { ApiError } from '../openapi';
 import { uniqBy } from '../utility/uniq-by';
+import { ApplyDecoratorUnique } from '../utility/apply-decorator-unique';
 
 const ParamResolverCopiedFieldsFromSwagger = [
   'required',
@@ -165,7 +166,12 @@ export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
     const swaggerInfo = uniqBy(this.toSwaggerInfo(), (info) => info.token);
     return (extras2: ApiHeaderOptions | ApiQueryOptions = {}) =>
       MergeClassOrMethodDecorators(
-        swaggerInfo.map((info) => info.swagger({ ...extras, ...extras2 })),
+        swaggerInfo.map((info) =>
+          ApplyDecoratorUnique(
+            info.swagger({ ...extras, ...extras2 }),
+            info.token,
+          ),
+        ),
       );
   }
   // for override

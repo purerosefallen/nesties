@@ -16,21 +16,14 @@ import {
   ParamResolverInput,
   ParamResolverInputDynamic,
 } from './resolver';
-import { MetadataSetter, Reflector } from 'typed-reflector';
 import { ModuleRef } from '@nestjs/core';
+import { Metadata, reflector } from './metadata';
 
 export interface RequireTokenOptions {
   resolver?: ParamResolverInput;
   tokenSource?: string | ParamResolverInputDynamic;
   errorCode?: number;
 }
-
-type RequireTokenMetadataMap = {
-  requireTokenOptions: RequireTokenOptions;
-};
-
-const reflector = new Reflector<RequireTokenMetadataMap, {}>();
-const Metadata = new MetadataSetter<RequireTokenMetadataMap, {}>();
 
 const defaultHeaderName = 'x-server-token';
 const defaultConfigName = 'SERVER_TOKEN';

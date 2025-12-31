@@ -1,25 +1,12 @@
-import { AnyClass, createMutateInject } from '../utility';
+import { createMutateInject } from '../utility';
 import { swaggerInjectionCollector } from '../utility/swagger-injection-collector';
-
-const clsUsedMap = new WeakMap<AnyClass, Set<string>>();
+import { ApplyDecoratorUnique } from '../utility/apply-decorator-unique';
 
 export const ApiInject = createMutateInject((token, cls) => {
   const swaggers = swaggerInjectionCollector(token);
-  if (!swaggers.length) return token;
-
-  let usedSet = clsUsedMap.get(cls);
-  if (!usedSet) {
-    usedSet = new Set<string>();
-    clsUsedMap.set(cls, usedSet);
-  }
 
   for (const swagger of swaggers) {
-    if (usedSet.has(swagger.token)) {
-      continue;
-    }
-    usedSet.add(swagger.token);
-
-    swagger.swagger()(cls);
+    ApplyDecoratorUnique(swagger.swagger(), swagger.token)(cls);
   }
 
   return token;
