@@ -1,5 +1,5 @@
-import { AnyClass, createMutateInject } from './utility';
-import { swaggerInjectionCollector } from './utility/swagger-injection-collector';
+import { AnyClass, createMutateInject } from '../utility';
+import { swaggerInjectionCollector } from '../utility/swagger-injection-collector';
 
 const clsUsedMap = new WeakMap<AnyClass, Set<string>>();
 
