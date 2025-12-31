@@ -2,7 +2,6 @@ import { Global, Module } from '@nestjs/common';
 import { I18nModuleBase, I18nModuleOptionsToken } from './i18n-token';
 import { I18nService } from './i18n.service';
 import { LocalePipe } from './locale.pipe';
-import { LocaleContext } from './locale.context';
 import { createProvider } from '../create-provider';
 import { I18nParamResolverToken } from './i18n-param-resolver.token';
 import { I18nModuleOptions } from './i18n-module.options';
