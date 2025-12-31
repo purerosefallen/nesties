@@ -1,5 +1,5 @@
 import type { Request } from 'express';
-import { Awaitable } from './utility/awaitable';
+import { Awaitable } from '../utility';
 import {
   createParamDecorator,
   Inject,
@@ -14,14 +14,14 @@ import {
   ApiQuery,
   ApiQueryOptions,
 } from '@nestjs/swagger';
-import { createProvider } from './create-provider';
-import { MergeClassOrMethodDecorators } from './merge';
+import { createProvider } from '../create-provider';
+import { MergeClassOrMethodDecorators } from '../merge';
 import { Type } from '@nestjs/common/interfaces';
-import { ParamResolverSwaggerInfo } from './utility/param-resolver-swagger-info.type';
-import { ResolverSwaggerMap } from './utility/resolver-swagger-map';
-import { BlankReturnMessageDto } from './return-message';
-import { ApiError } from './openapi';
-import { uniqBy } from './utility/uniq-by';
+import { ParamResolverSwaggerInfo } from '../utility/param-resolver-swagger-info.type';
+import { ResolverSwaggerMap } from '../utility/resolver-swagger-map';
+import { BlankReturnMessageDto } from '../return-message';
+import { ApiError } from '../openapi';
+import { uniqBy } from '../utility/uniq-by';
 
 const ParamResolverCopiedFieldsFromSwagger = [
   'required',
