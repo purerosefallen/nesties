@@ -11,6 +11,9 @@ import {
   I18nService,
   PutLocale,
 } from '../src/i18n-module';
+import { LocaleContext } from '../src/i18n-module/locale.context';
+import { ApiInject } from '../src/resolver';
+import { DECORATORS } from '@nestjs/swagger/dist/constants';
 
 // ---- dictionary for tests (covering en / zh / zh-Hans)
 const DICT: Record<string, Record<string, string>> = {
@@ -46,10 +49,15 @@ const { I18nModule, UseI18n } = createI18n({
   defaultLocale: 'en',
 });
 
+const getApiHeadersMeta = (cls: any): any[] =>
+  Reflect.getMetadata(DECORATORS.API_HEADERS, cls) ?? [];
+
 // ---- a tiny controller using your DTOs
 @UseI18n()
 @Controller()
 class DemoController {
+  constructor(@ApiInject() private localeContext: LocaleContext) {}
+
   @Get('/ok')
   ok() {
     // message 与 data 都含占位
@@ -98,6 +106,17 @@ class DemoController {
       200,
       '#{thingOnlyInEn}',
       '#{thingOnlyInZh}',
+    );
+  }
+
+  @Get('/locale-context')
+  async testLocaleContext() {
+    const locale = this.localeContext.locale;
+    const translated = await this.localeContext.translate('#{ok}');
+    return new GenericReturnMessageDto<string>(
+      200,
+      'success',
+      `${locale} - ${translated}`,
     );
   }
 }
@@ -213,5 +232,24 @@ describe('i18n e2e', () => {
       .expect(200);
     expect(res.body.message).toBe('This key is only in en locale'); // '#{thingOnlyInEn}' → fallback to en
     expect(res.body.data).toBe('此键仅在 zh 语言中存在'); // '#{thingOnlyInZh}' → fallback to zh
+  });
+
+  it('should use LocaleContext to get locale and translate', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/locale-context')
+      .set('X-Lang', 'zh-Hans-CN')
+      .expect(200);
+    expect(res.body.data).toBe('zh-Hans - 成功');
+  });
+
+  it('contains api headers metadata for locale resolver', () => {
+    class C1 {
+      constructor(@ApiInject() ctx: LocaleContext) {}
+    }
+
+    const headers = getApiHeadersMeta(C1);
+    expect(headers).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'x-lang' })]),
+    );
   });
 });

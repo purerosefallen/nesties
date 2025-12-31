@@ -8,9 +8,10 @@ import {
 import { I18nModuleOptionsToken } from './i18n-token';
 import { I18nModuleOptions } from './i18n-module.options';
 import { ModuleRef } from '@nestjs/core';
-import { createResolver } from '../resolver';
+import { ParamResolverBase } from '../resolver';
 import { I18n } from 'nfkit';
 import { I18nNesties } from './i18n.types';
+import { I18nParamResolverToken } from './i18n-param-resolver.token';
 
 @Injectable()
 export class I18nService extends I18n<I18nNesties.Ex> {
@@ -18,6 +19,7 @@ export class I18nService extends I18n<I18nNesties.Ex> {
     @Inject(I18nModuleOptionsToken)
     private i18nServiceOptions: I18nModuleOptions,
     @Inject(ModuleRef) private moduleRef: ModuleRef,
+    @Inject(I18nParamResolverToken) private resolver: ParamResolverBase<string>,
   ) {
     super(i18nServiceOptions);
   }
@@ -59,17 +61,15 @@ export class I18nService extends I18n<I18nNesties.Ex> {
     return this;
   }
 
-  private resolver = createResolver(this.i18nServiceOptions.resolver);
-
   async getExactLocaleFromRequest(ctx: ExecutionContext) {
     const req = ctx.switchToHttp().getRequest();
-    const locale = await this.resolver(req, this.moduleRef);
+    const locale = await this.resolver.resolve(req, this.moduleRef);
     return this.getExactLocale(locale);
   }
 
   async translateRequest(ctx: ExecutionContext, obj: any): Promise<any> {
     const req = ctx.switchToHttp().getRequest();
-    const locale = await this.resolver(req, this.moduleRef);
+    const locale = await this.resolver.resolve(req, this.moduleRef);
     return this.translate(locale, obj, ctx);
   }
 }
