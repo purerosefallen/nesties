@@ -1,6 +1,9 @@
 import { FactoryProvider } from '@nestjs/common';
 import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
-import { InjectionTokenMap } from './utility/injection-token-map';
+import {
+  addInjectionTokenMapping,
+  InjectionTokenMap,
+} from './utility/injection-token-map';
 
 type TypeFromToken<T> = T extends string | symbol
   ? any
@@ -27,7 +30,7 @@ export const createProvider = <const A extends InjectionToken[], R>(
   factory: (...args: TokensToTypes<A>) => Awaitable<R>,
 ): TypedFactoryProvider<A, R> => {
   if (options.inject) {
-    InjectionTokenMap.set(options.provide, options.inject);
+    addInjectionTokenMapping(options.provide, options.inject);
   }
   return {
     useFactory: factory,
