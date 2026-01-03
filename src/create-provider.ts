@@ -1,9 +1,6 @@
 import { FactoryProvider } from '@nestjs/common';
 import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
-import {
-  addInjectionTokenMapping,
-  InjectionTokenMap,
-} from './utility/injection-token-map';
+import { addInjectionTokenMapping } from './utility/injection-token-map';
 
 type TypeFromToken<T> = T extends string | symbol
   ? any
