@@ -23,6 +23,7 @@ import { BlankReturnMessageDto } from '../return-message';
 import { ApiError } from '../openapi';
 import { uniqBy } from '../utility/uniq-by';
 import { ApplyDecoratorUnique } from '../utility/apply-decorator-unique';
+import { ApiInject } from './api-inject';
 
 const ParamResolverCopiedFieldsFromSwagger = [
   'required',
@@ -225,7 +226,7 @@ export abstract class ParamResolverBase<T, R extends AnyReq = AnyReq> {
     return {
       token: useToken,
       provider,
-      inject: () => Inject(useToken),
+      inject: () => ApiInject(useToken),
     };
   }
 }
