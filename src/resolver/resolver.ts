@@ -399,7 +399,8 @@ export class TransformParamResolver<
   }
 
   override toSwaggerInfo(extras: ParamResolverSwaggerInfo[] = []) {
-    return this.baseResolver.toSwaggerInfo(extras);
+    const info = this.baseResolver.toSwaggerInfo(extras);
+    return super.toSwaggerInfo(info);
   }
 }
 
