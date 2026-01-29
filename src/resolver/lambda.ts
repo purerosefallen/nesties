@@ -13,7 +13,7 @@ export const createLambdaParamResolver =
 
 export const ParseIntParamResolver = createLambdaParamResolver((s: string) => {
   if (s == null) {
-    return s;
+    return s as unknown as number;
   }
   const res = parseInt(s, 10);
   if (isNaN(res)) {
@@ -27,7 +27,7 @@ export const ParseIntParamResolver = createLambdaParamResolver((s: string) => {
 export const ParseFloatParamResolver = createLambdaParamResolver(
   (s: string) => {
     if (s == null) {
-      return s;
+      return s as unknown as number;
     }
     const res = parseFloat(s);
     if (isNaN(res)) {
@@ -43,7 +43,7 @@ export const ParseBoolParamResolver = createLambdaParamResolver(parseBool);
 export const ParseDateParamResolver = createLambdaParamResolver(
   (s: number | string | Date) => {
     if (s == null) {
-      return s;
+      return s as unknown as Date;
     }
     const res = new Date(s);
     // check invalid date
@@ -59,7 +59,7 @@ export const ParseDateParamResolver = createLambdaParamResolver(
 export const ParseBase64ParamResolver = createLambdaParamResolver(
   (s: string) => {
     if (s == null) {
-      return s;
+      return s as unknown as Buffer;
     }
     // support base64 or base64url
     const normalized = s.replace(/-/g, '+').replace(/_/g, '/');
