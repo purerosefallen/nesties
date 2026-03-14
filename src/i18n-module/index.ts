@@ -6,3 +6,4 @@ export * from './i18n-factory';
 export * from './i18n.interceptor';
 export * from './middlewares';
 export * from './locale.pipe';
+export * from './locale.context';
