@@ -8,11 +8,6 @@ export const createI18nDecorator = (options: I18nModuleOptions) => {
   return () =>
     MergeClassOrMethodDecorators([
       UseInterceptors(I18nInterceptor),
-      ApiFromResolver(options.resolver, {
-        description: 'Locale for internationalization',
-        required: false,
-        default: options.defaultLocale ?? options.locales[0],
-        enum: options.locales,
-      }),
+      ApiFromResolver(options.resolver),
     ]);
 };

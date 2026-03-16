@@ -1,7 +1,11 @@
 import { I18nModuleOptions } from './i18n-module.options';
 import { createI18nDecorator } from './i18n-decorator';
 import { I18nModule } from './i18n.module';
-import { getParamResolver, ParamResolverInput } from '../resolver';
+import {
+  getParamResolver,
+  ParamResolverInput,
+  ParamResolverInputStatic,
+} from '../resolver';
 import { LocaleContext } from './locale.context';
 import { I18nParamResolverProviderToken } from './i18n-param-resolver.token';
 import { createProvider } from '../create-provider';
@@ -15,6 +19,19 @@ export const createI18n = (
     options.resolver = {
       paramType: 'header',
       paramName: 'x-client-language',
+    };
+  }
+  if (typeof options.resolver !== 'function') {
+    const resolver = (options.resolver ?? {}) as ParamResolverInputStatic;
+    options.resolver = {
+      ...resolver,
+      openapiExtras: {
+        description: 'Locale for internationalization',
+        required: false,
+        default: options.defaultLocale ?? options.locales[0],
+        enum: options.locales,
+        ...(resolver.openapiExtras ?? {}),
+      },
     };
   }
   const resolver = getParamResolver(options.resolver);
