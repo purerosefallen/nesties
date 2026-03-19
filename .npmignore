@@ -3,6 +3,7 @@
 /data
 /output
 /config.yaml
+/research
 .idea
 .dockerignore
 Dockerfile

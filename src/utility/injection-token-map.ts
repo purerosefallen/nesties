@@ -1,4 +1,4 @@
-import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
+import { InjectionToken } from '@nestjs/common';
 
 export const InjectionTokenMap = new Map<InjectionToken, InjectionToken[]>();
 

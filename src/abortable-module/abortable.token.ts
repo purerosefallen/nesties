@@ -1,9 +1,8 @@
-import { Inject, Scope } from '@nestjs/common';
+import { Inject, InjectionToken, Scope } from '@nestjs/common';
 import { abortable, AbortableOpts } from 'nfkit';
 import { ABORT_SIGNAL } from './abort-signal.provider';
 import { ContextIdFactory, ModuleRef, REQUEST } from '@nestjs/core';
 import { createProvider } from '../create-provider';
-import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
 import { createMutateInject } from '../utility/create-mutate-inject';
 
 const tokenMemo = new Map<any, symbol>();

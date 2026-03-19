@@ -1,4 +1,4 @@
-import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
+import { InjectionToken } from '@nestjs/common';
 import { swaggerInjectionCollector } from './swagger-injection-collector';
 import { ApplyDecoratorUnique } from './apply-decorator-unique';
 

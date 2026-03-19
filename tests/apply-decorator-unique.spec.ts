@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { ApplyDecoratorUnique } from '../src/utility/apply-decorator-unique';
 
 describe('ApplyDecoratorUnique (behavior-only)', () => {

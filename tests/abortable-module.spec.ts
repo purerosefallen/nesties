@@ -1,5 +1,6 @@
 // aborted.forRoot-feature.e2e.spec.ts
 import 'reflect-metadata';
+import { jest } from '@jest/globals';
 import { Controller, Get, HttpException, Injectable } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
