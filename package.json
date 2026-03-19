@@ -1,7 +1,7 @@
 {
   "name": "nesties",
   "description": "Nest.js utilities",
-  "version": "1.1.32",
+  "version": "1.1.33",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -44,6 +44,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "setupFiles": [
+      "reflect-metadata"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
@@ -85,6 +88,7 @@
   },
   "dependencies": {
     "nfkit": "^1.0.10",
-    "typed-reflector": "^1.0.13"
+    "reflect-metadata": "^0.2.2",
+    "typed-reflector": "^1.1.2"
   }
 }
