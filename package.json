@@ -44,6 +44,9 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "setupFiles": [
+      "reflect-metadata"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],
@@ -86,6 +89,6 @@
   "dependencies": {
     "nfkit": "^1.0.10",
     "reflect-metadata": "^0.2.2",
-    "typed-reflector": "^1.1.0"
+    "typed-reflector": "^1.1.2"
   }
 }
