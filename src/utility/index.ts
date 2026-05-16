@@ -3,6 +3,7 @@ export * from './class-types';
 export * from './awaitable';
 export * from './get-api-property';
 export * from './swagger-decorators';
+export * from './nest-common-constants';
 export * from './create-mutate-inject';
 export * from './parse-bool';
 export * from './injection-token-map';

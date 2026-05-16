@@ -1,5 +1,5 @@
-import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
 import { Inject } from '@nestjs/common';
+import type { InjectionToken } from '@nestjs/common';
 import { AnyClass } from './class-types';
 
 export type InjectPos =

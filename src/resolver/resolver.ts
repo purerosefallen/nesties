@@ -7,6 +7,7 @@ import {
   PipeTransform,
   Scope,
 } from '@nestjs/common';
+import type { Type } from '@nestjs/common';
 import { ModuleRef, REQUEST } from '@nestjs/core';
 import {
   ApiHeader,
@@ -16,7 +17,6 @@ import {
 } from '@nestjs/swagger';
 import { createProvider } from '../create-provider';
 import { MergeClassOrMethodDecorators } from '../merge';
-import { Type } from '@nestjs/common/interfaces';
 import { ParamResolverSwaggerInfo } from '../utility/param-resolver-swagger-info.type';
 import { ResolverSwaggerMap } from '../utility/resolver-swagger-map';
 import { BlankReturnMessageDto } from '../return-message';

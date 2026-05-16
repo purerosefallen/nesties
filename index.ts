@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 export * from './src/insert-field';
 export * from './src/merge';
 export * from './src/return-message';

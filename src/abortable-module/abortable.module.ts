@@ -1,8 +1,8 @@
 import { DynamicModule, Module } from '@nestjs/common';
+import type { InjectionToken } from '@nestjs/common';
 import { createAbortableProvider } from './abortable.token';
 import { AbortableOpts } from 'nfkit';
 import { AbortSignalProvider } from './abort-signal.provider';
-import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
 
 export interface AbortableModuleOptions {
   abortableOptions?: AbortableOpts;

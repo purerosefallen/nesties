@@ -1,8 +1,8 @@
-import { InjectionToken } from '@nestjs/common/interfaces/modules/injection-token.interface';
+import type { InjectionToken } from '@nestjs/common';
 import {
   PARAMTYPES_METADATA,
   SELF_DECLARED_DEPS_METADATA,
-} from '@nestjs/common/constants';
+} from './nest-common-constants';
 import { InjectionTokenMap } from './injection-token-map';
 
 function asArray<T>(v: T | T[] | undefined): T[] {
