@@ -13,7 +13,7 @@ import {
 } from '../src/i18n-module';
 import { LocaleContext } from '../src/i18n-module/locale.context';
 import { ApiInject } from '../src/resolver';
-import { DECORATORS } from '@nestjs/swagger/dist/constants';
+import { DECORATORS } from '../src/utility/swagger-decorators';
 
 // ---- dictionary for tests (covering en / zh / zh-Hans)
 const DICT: Record<string, Record<string, string>> = {

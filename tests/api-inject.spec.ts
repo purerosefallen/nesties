@@ -2,13 +2,13 @@
 import 'reflect-metadata';
 
 import { Controller, Get, Injectable } from '@nestjs/common';
-import { DECORATORS } from '@nestjs/swagger/dist/constants';
 
 import { ApiInject } from '../src/resolver/api-inject';
 import { ResolverSwaggerMap } from '../src/utility/resolver-swagger-map';
 import { InjectionTokenMap } from '../src/utility/injection-token-map';
 import { createProvider } from '../src/create-provider';
 import { AnyReq, CombinedParamResolver, ParamResolver } from '../src/resolver';
+import { DECORATORS } from '../src/utility/swagger-decorators';
 type HookFn = () => void;
 
 /**
