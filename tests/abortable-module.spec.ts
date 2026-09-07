@@ -6,8 +6,7 @@ import request from 'supertest';
 
 import { AbortableModule, InjectAbortable } from '../src/abortable-module';
 
-jest.useRealTimers();
-jest.setTimeout(15000);
+vi.useRealTimers();
 
 const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
