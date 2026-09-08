@@ -7,7 +7,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('ClassDecorator: same identifier only runs once per class', () => {
     const id = Symbol('id');
-    const dec = vi.fn<void, [Function]>();
+    const dec = vi.fn() as ClassDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {}
@@ -19,7 +19,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
   });
 
   it('ClassDecorator: different identifiers both run once', () => {
-    const dec = vi.fn<void, [Function]>();
+    const dec = vi.fn() as ClassDecorator;
     const w1 = ApplyDecoratorUnique(dec, Symbol('id1'));
     const w2 = ApplyDecoratorUnique(dec, Symbol('id2'));
 
@@ -35,7 +35,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('MethodDecorator: same identifier only runs once per (class, method)', () => {
     const id = Symbol('id');
-    const dec = vi.fn<any, [object, string | symbol, PropertyDescriptor]>();
+    const dec = vi.fn() as MethodDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -53,7 +53,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('MethodDecorator: same identifier on different methods should run once per method', () => {
     const id = Symbol('id');
-    const dec = vi.fn<any, [object, string | symbol, PropertyDescriptor]>();
+    const dec = vi.fn() as MethodDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -78,7 +78,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('PropertyDecorator: same identifier only runs once per (class, property)', () => {
     const id = Symbol('id');
-    const dec = vi.fn<void, [object, string | symbol]>();
+    const dec = vi.fn() as PropertyDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -93,7 +93,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('PropertyDecorator: same identifier on different properties should run once per property', () => {
     const id = Symbol('id');
-    const dec = vi.fn<void, [object, string | symbol]>();
+    const dec = vi.fn() as PropertyDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -111,7 +111,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('AccessorDecorator (getter): same identifier only runs once per accessor', () => {
     const id = Symbol('id');
-    const dec = vi.fn<any, [object, string | symbol, PropertyDescriptor]>();
+    const dec = vi.fn() as MethodDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -130,7 +130,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('AccessorDecorator (setter): same identifier only runs once per accessor', () => {
     const id = Symbol('id');
-    const dec = vi.fn<any, [object, string | symbol, PropertyDescriptor]>();
+    const dec = vi.fn() as MethodDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -149,7 +149,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('ParameterDecorator (method param): same identifier only runs once per method (not per index)', () => {
     const id = Symbol('id');
-    const dec = vi.fn<void, [object, string | symbol, number]>();
+    const dec = vi.fn() as ParameterDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -165,7 +165,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('ParameterDecorator (constructor param): same identifier only runs once per class', () => {
     const id = Symbol('id');
-    const dec = vi.fn<void, [Function, undefined, number]>();
+    const dec = vi.fn() as ParameterDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -181,7 +181,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
 
   it('Static method decorator: same identifier only runs once per (class, staticMethod)', () => {
     const id = Symbol('id');
-    const dec = vi.fn<any, [object, string | symbol, PropertyDescriptor]>();
+    const dec = vi.fn() as MethodDecorator;
     const wrapped = ApplyDecoratorUnique(dec, id);
 
     class A {
@@ -198,7 +198,7 @@ describe('ApplyDecoratorUnique (behavior-only)', () => {
   });
 
   it('Member decorator: different identifiers both run once (same target)', () => {
-    const dec = vi.fn<void, [object, string | symbol]>();
+    const dec = vi.fn() as PropertyDecorator;
 
     const w1 = ApplyDecoratorUnique(dec, Symbol('id1'));
     const w2 = ApplyDecoratorUnique(dec, Symbol('id2'));
