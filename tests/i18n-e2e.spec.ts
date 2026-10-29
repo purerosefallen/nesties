@@ -1,3 +1,4 @@
+import { NodeAdapter } from '@nestjs/platform-node';
 import { INestApplication, Controller, Get, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -136,7 +137,7 @@ describe('i18n e2e', () => {
       imports: [DemoModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(new NodeAdapter());
     i18n = app.get(I18nService);
 
     // 注入字典查找中间件（最长前缀匹配）

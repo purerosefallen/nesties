@@ -1,3 +1,4 @@
+import { NodeAdapter } from '@nestjs/platform-node';
 import {
   Controller,
   Get,
@@ -332,7 +333,7 @@ describe('ParamResolver / CombinedParamResolver e2e', () => {
       imports: [ParamResolverDemoModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(new NodeAdapter());
     await app.init();
   });
 

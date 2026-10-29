@@ -1,3 +1,4 @@
+import { NodeAdapter } from '@nestjs/platform-node';
 // lambda-resolver.spec.ts
 import {
   Controller,
@@ -104,7 +105,7 @@ describe('lambda resolvers (createLambdaParamResolver) e2e', () => {
       imports: [LambdaResolverDemoModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(new NodeAdapter());
     await app.init();
   });
 

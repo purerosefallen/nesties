@@ -1,3 +1,4 @@
+import { NodeAdapter } from '@nestjs/platform-node';
 // aborted.forRoot-feature.e2e.spec.ts
 import 'reflect-metadata';
 import { Controller, Get, HttpException, Injectable } from '@nestjs/common';
@@ -98,7 +99,7 @@ describe('AbortableModule (forRoot / forFeature) e2e', () => {
       providers: [DemoService],
     }).compile();
 
-    app = modRef.createNestApplication();
+    app = modRef.createNestApplication(new NodeAdapter());
     await app.init();
   });
 

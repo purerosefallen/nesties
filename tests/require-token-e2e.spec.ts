@@ -1,3 +1,4 @@
+import { NodeAdapter } from '@nestjs/platform-node';
 import { Controller, Get, INestApplication, Module } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -115,7 +116,7 @@ describe('RequireToken e2e', () => {
       imports: [E2eTestModule],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication(new NodeAdapter());
     await app.init();
   });
 
