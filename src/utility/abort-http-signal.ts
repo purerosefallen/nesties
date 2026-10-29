@@ -1,19 +1,16 @@
 // abort-http-signal.ts
-import type { IncomingMessage } from 'http';
-import type { Request as ExpressReq } from 'express';
-import type { FastifyRequest } from 'fastify';
+import type { IncomingMessage } from 'node:http';
 import { BlankReturnMessageDto } from '../return-message';
 
-type AnyReq = ExpressReq | FastifyRequest | IncomingMessage;
+export type HttpRequest = IncomingMessage | { raw: IncomingMessage };
 
-function toRawReq(req: AnyReq): IncomingMessage {
-  // Fastify: req.raw 是 IncomingMessage；Express: req 本身就是 IncomingMessage
-  if ((req as any)?.raw?.socket) return (req as any).raw as IncomingMessage;
+function toRawReq(req: HttpRequest): IncomingMessage {
+  if ('raw' in req && req.raw?.socket) return req.raw;
   return req as IncomingMessage;
 }
 
 /**
- * 仅通过 req 自动适配 Express/Fastify，绑定 HTTP 取消到 AbortSignal。
+ * Accepts native requests and adapters exposing their native request as raw.
  * - 优先监听 'aborted'（客户端中断最可靠的信号）
  * - 可选兜底：在 socket 'close' 时，仅当请求未完整接收/或已标记 aborted 时，才触发 abort，避免正常完成的误伤
  * - reason 固定为 499 HttpException
@@ -23,7 +20,7 @@ function toRawReq(req: AnyReq): IncomingMessage {
  *   const reason = new AbortedError('Request aborted', httpErr);
  * 并让 throwIfAborted 先抛 AbortedError（保留 cause）。
  */
-export function createAbortSignalFromHttp(req: AnyReq): AbortSignal {
+export function createAbortSignalFromHttp(req: HttpRequest): AbortSignal {
   const rawReq = toRawReq(req);
   const ac = new AbortController();
 

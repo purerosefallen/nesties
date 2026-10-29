@@ -1,4 +1,3 @@
-import type { Request } from 'express';
 import { Awaitable } from '../utility';
 import {
   createParamDecorator,
@@ -42,24 +41,26 @@ export interface ParamResolverInputStatic
   openapiExtras?: ApiHeaderOptions | ApiQueryOptions;
 }
 
-export type AnyReq = Request & {
-  headers?: Record<string, any>;
-  query?: any;
+/** Structural request contract shared by HTTP adapters and lightweight callers. */
+export type AnyReq = {
+  headers?: Record<string, unknown>;
+  query?: unknown;
   url?: string;
   originalUrl?: string;
-  getHeader?: (name: string) => any;
-  get?: (name: string) => any;
-  header?: (name: string) => any;
+  ip?: string;
+  getHeader?: (name: string) => unknown;
+  get?: (name: string) => unknown;
+  header?: (name: string) => unknown;
 };
 
 export type ParamResolverInputDynamic<R = AnyReq> = (
   req: R,
   ref: ModuleRef,
-) => Awaitable<string>;
+) => Awaitable<string | undefined>;
 
-export type ParamResolverInputDual =
+export type ParamResolverInputDual<R = AnyReq> =
   | ParamResolverInputStatic
-  | ParamResolverInputDynamic;
+  | ParamResolverInputDynamic<R>;
 
 const coerceToString = (v: any): string | undefined => {
   if (v == null) return undefined; // null / undefined
@@ -75,8 +76,8 @@ const getHeader = (req: AnyReq, name: string): string | undefined => {
   // 先走方法（express/部分适配器）
   const viaMethod =
     (typeof req.getHeader === 'function' && req.getHeader(name)) ||
-    (typeof (req as any).header === 'function' && (req as any).header(name)) ||
-    (typeof (req as any).get === 'function' && (req as any).get(name));
+    (typeof req.header === 'function' && req.header(name)) ||
+    (typeof req.get === 'function' && req.get(name));
 
   if (viaMethod) {
     return coerceToString(viaMethod);
@@ -85,7 +86,7 @@ const getHeader = (req: AnyReq, name: string): string | undefined => {
   // 再查 headers，大小写无关
   const n = name.toLowerCase();
   const headers = req.headers ?? {};
-  if (n in headers) return coerceToString((headers as any)[n]);
+  if (n in headers) return coerceToString(headers[n]);
 
   const hit = Object.entries(headers).find(([k]) => k.toLowerCase() === n)?.[1];
   return coerceToString(hit);
@@ -101,7 +102,7 @@ function getQueryValue(req: AnyReq, key: string): string | undefined {
   // 1. 普通对象模式（Express/Fastify 已解析）
   const q = req.query;
   if (q && typeof q === 'object' && !('raw' in q)) {
-    const v = (q as any)[key];
+    const v = (q as Record<string, unknown>)[key];
     if (v != null) return coerceToString(v);
   }
 
@@ -239,8 +240,8 @@ export class ParamResolver<R extends AnyReq = AnyReq> extends ParamResolverBase<
   R
 > {
   private readonly info: ParamResolverInputStatic;
-  private readonly dynamic: ParamResolverInputDynamic;
-  constructor(input: ParamResolverInputDual) {
+  private readonly dynamic: ParamResolverInputDynamic<R>;
+  constructor(input: ParamResolverInputDual<R>) {
     super();
     if (typeof input === 'function') {
       this.dynamic = input;
@@ -405,11 +406,13 @@ export class TransformParamResolver<
   }
 }
 
-export type ParamResolverInput =
-  | ParamResolverInputDual
-  | ParamResolverBase<string>;
+export type ParamResolverInput<R extends AnyReq = AnyReq> =
+  | ParamResolverInputDual<R>
+  | ParamResolverBase<string | undefined, R>;
 
-export const getParamResolver = (input: ParamResolverInput) => {
+export const getParamResolver = <R extends AnyReq = AnyReq>(
+  input: ParamResolverInput<R>,
+) => {
   if (input instanceof ParamResolverBase) {
     return input;
   }
@@ -417,15 +420,15 @@ export const getParamResolver = (input: ParamResolverInput) => {
 };
 
 // @deprecated use ParamResolver directly
-export const createResolver = (
-  _options: ParamResolverInput,
-): ParamResolverInputDynamic => {
+export const createResolver = <R extends AnyReq = AnyReq>(
+  _options: ParamResolverInput<R>,
+): ParamResolverInputDynamic<R> => {
   return getParamResolver(_options).toResolverFunction();
 };
 
 // @deprecated use ParamResolver directly
-export const ApiFromResolver = (
-  _options: ParamResolverInput,
+export const ApiFromResolver = <R extends AnyReq = AnyReq>(
+  _options: ParamResolverInput<R>,
   extras: ApiHeaderOptions | ApiQueryOptions = {},
 ): ClassDecorator & MethodDecorator => {
   return getParamResolver(_options).toApiPropertyDecorator(extras)();

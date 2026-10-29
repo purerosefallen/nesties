@@ -8,7 +8,7 @@ export const createLambdaParamResolver =
   <T, U, Req extends AnyReq = AnyReq>(
     cb: (param: T, ref: ModuleRef, req: Req) => Awaitable<U>,
   ) =>
-  (resolver: ParamResolverBase<T>) =>
+  (resolver: ParamResolverBase<T, Req>) =>
     new TransformParamResolver<T, U, Req>(resolver, cb);
 
 export const ParseIntParamResolver = createLambdaParamResolver((s: string) => {

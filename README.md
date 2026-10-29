@@ -541,6 +541,21 @@ export class QueryLocaleController {
 
 Static header resolvers normalize header names to lowercase and perform a best-effort lookup across `req.headers` and common Express-style helpers (`req.get`, `req.header`, `req.getHeader`). Query resolvers first consult `req.query`, then fall back to parsing the current URL when needed.
 
+`AnyReq` is a structural request type shared by adapters; it does not extend Express's `Request`. Its optional fields cover headers, query values, URLs, client IP, and header lookup helpers. Static resolvers accept Express requests, Nest's `NodeRequest`, Fastify requests, native Node `IncomingMessage` instances, and small request objects without casts.
+
+For dynamic logic that needs platform-specific properties, supply the request type explicitly or annotate the callback so it can be inferred:
+
+```ts
+import type { NodeRequest } from '@nestjs/platform-node';
+import { ParamResolver } from 'nesties';
+
+const nodeTokenResolver = new ParamResolver<NodeRequest>((req) =>
+  req.get('x-client-token')?.toString() ?? '',
+);
+```
+
+Existing callbacks that use Express-only properties should similarly specify `ParamResolver<Request>` with `Request` imported as a type from `express`. Resolver functions and transformations retain the supplied request type.
+
 #### Dynamic resolvers with `ModuleRef`
 
 When you need more control, `ParamResolver` also accepts a dynamic function `(req, moduleRef) => Promise<string | undefined>`. This is ideal for request-scoped dependencies or multi-step lookups.

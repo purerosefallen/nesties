@@ -1,7 +1,7 @@
 import { Observable, takeUntil } from 'rxjs';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { Request } from 'express';
 import { createAbortSignalFromHttp } from './utility/abort-http-signal';
+import type { HttpRequest } from './utility/abort-http-signal';
 
 export type AbortableFn<T> = (ac: AbortController) => Promise<T>;
 
@@ -51,7 +51,7 @@ export const takeUntilAbort = <T>(signal: AbortSignal) => {
 
 export const As = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext) => {
-    const req = ctx.switchToHttp().getRequest<Request>();
+    const req = ctx.switchToHttp().getRequest<HttpRequest>();
     return createAbortSignalFromHttp(req);
   },
 );
